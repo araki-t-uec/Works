@@ -1,6 +1,7 @@
 #ignore about .htaccess . but now, i have't benn using. 
 .h*
 */Models/*
+*/Img/*
 *~
 arak*
 Video-Classification-2-Stream-CNN/
