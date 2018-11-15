@@ -13,22 +13,23 @@ import os
 import dataload
 import networks
 
-os.environ["CUDA_VISIBLE_DEVICES"]="0" #,2,3"
+os.environ["CUDA_VISIBLE_DEVICES"]="1" #,2,3"
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 transform = transforms.Compose(
     [transforms.ToTensor(),
      transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 
-datadir = "./UECFOOD100"
+datadir = "./data/UECFOOD100"
 uecfood = dataload.MyDataset(datadir, transform)
 train_size = int(0.8 * len(uecfood))
 test_size = len(uecfood)-train_size  
 uectrain, uectest = torch.utils.data.random_split(uecfood, [train_size, test_size])
 
-batch_size = 10
-num_workers= 16
-epoch = 9
+batch_size = 1
+num_workers= 2
+epoch = 4
+print(batch_size, "batch, ", epoch, "epoch")
 trainloader =  torch.utils.data.DataLoader(uectrain, batch_size= batch_size,
                                           shuffle=True, num_workers=num_workers)
 testloader = torch.utils.data.DataLoader(uectest, batch_size=batch_size,
@@ -113,8 +114,19 @@ for epoch in range(epoch):  # loop over the dataset multiple times
 
 
 print('Finished Training')
-#print(test(testloader))
-#plt.savefig('figureuec.png')
+x = []
+for i in range(0, len(loss_list)):
+    x.append(i)
+x = np.array(x)
+plt.plot(x, np.array(loss_list), label="loss")
+plt.plot(x, np.array(val_loss_list), label="loss")
+plt.plot(x, np.array(val_acc_list), label="loss")
+plt.legend() # 凡例
+plt.xlabel("epoch")
+plt.ylabel("score")
+plt.savefig('figureuec.png')
+print("save to ./figureuec.png")
+
 dataiter = iter(testloader)
 images, labels = dataiter.next()
 
@@ -123,10 +135,13 @@ def denorm(x):
     return out.clamp(0, 1)
 
 IMAGE_PATH = "."
-j = epoch
 #torchvision.utils.save_image(self.denorm(A.data.cpu()), '{}/real_{}.png'.format(IMAGE_PATH, j+1))
-torchvision.utils.save_image(denorm(images.data.cpu()), '{}/real_{}.png'.format(IMAGE_PATH, j+1))
+save_file = '{}/real_{}e_{}b.png'.format(IMAGE_PATH, epoch, batch_size)
+torchvision.utils.save_image(denorm(images.data.cpu()), save_file)
 
 
-print("save to png")
+print("save to ", save_file)
 print(labels)
+
+torch.save(model.state_dict(), './Models/model.ckpt')
+print("save to ./Models/model.ckpt")
