@@ -13,64 +13,57 @@ import os
 import dataload
 import networks
 
-os.environ["CUDA_VISIBLE_DEVICES"]="0,1" #,2,3"
+os.environ["CUDA_VISIBLE_DEVICES"]="1" #,2,3"
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 transform = transforms.Compose(
-    [transforms.Resize((224, 224)),
-     transforms.ToTensor(),
+    [transforms.Resize((224,224)),
+        transforms.ToTensor(),
      transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 
-datadir = "./data/ImageNet/train/"
-data_im = dataload.YourDataset(datadir, transform)
-train_size = int(0.8 * len(data_im))
-test_size = len(data_im)-train_size  
-train_im, test_im = torch.utils.data.random_split(data_im, [train_size, test_size])
-print("load image path: ", datadir)
+datadir = "./data/Dogs/"
+dataset = dataload.AVIload(datadir, transform)
+train_size = int(0.8 * len(dataset))
+test_size = len(dataset)-train_size  
+traindata, testdata = torch.utils.data.random_split(dataset, [train_size, test_size])
 
+exit()
 
-batch_size = 10
-num_workers= 8
+batch_size = 1
+num_workers= 2
 epoch = 2
 print(batch_size, "batch, ", epoch, "epoch")
-trainloader =  torch.utils.data.DataLoader(train_im, batch_size= batch_size,
-                                          shuffle=False, num_workers=num_workers)
-testloader = torch.utils.data.DataLoader(test_im, batch_size=batch_size,
-                                          shuffle=False, num_workers=num_workers)
+trainloader =  torch.utils.data.DataLoader(traindata, batch_size= batch_size,
+                                          shuffle=True, num_workers=num_workers)
+testloader = torch.utils.data.DataLoader(testdata, batch_size=batch_size,
+                                          shuffle=True, num_workers=num_workers)
 
 classes = [f for f in os.listdir(datadir) if os.path.isdir(os.path.join(datadir, f))]
 
-categories = {}
-count = 0
-for i in classes:
-    if i not in categories.keys():
-        categories[i] = count
-        count += 1
-        #print(count,": ",i) 
-#print(categories)
-model = networks.VGG16_1000().to(device)
-#print(data_im.categories)
-#print(model)
+model = networks.VGG16old().to(device)
+print(model)
 #if device == "cuda":
     #model = torch.nn.DataParallel(net)
 
 criterion = torch.nn.CrossEntropyLoss()
 optimizer = torch.optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
 
+
 def train(train_loader):
     model.train()
     running_loss = 0.0
     for i, data in enumerate(trainloader, 0):
+        # get the inputs
         inputs, labels = data
-        
         inputs = inputs.to(device)
         labels = labels.to(device)
         # zero the parameter gradients
         optimizer.zero_grad()
+
         # forward + backward + optimize
         outputs = model(inputs)
         print(labels)
-        print(type(labels))
+        print(labels.shape)
         loss = criterion(outputs, labels)
         loss.backward()
         optimizer.step()
@@ -101,6 +94,10 @@ def test(test_loader):
             predicted = outputs.max(1, keepdim=True)[1]
             correct += predicted.eq(labels.view_as(predicted)).sum().item()
             total += labels.size(0)
+            #print(labels)
+            #print(predicted)
+            #print(labels.view_as(predicted))
+            #print(predicted.eq(labels.view_as(predicted)))
     val_loss = running_loss / len(test_loader)
     val_acc = correct / total
     
@@ -126,14 +123,14 @@ x = []
 for i in range(0, len(loss_list)):
     x.append(i)
 x = np.array(x)
-plt.plot(x, np.array(loss_list), label="loss")
-plt.plot(x, np.array(val_loss_list), label="loss")
-#plt.plot(x, np.array(val_acc_list), label="loss")
+plt.plot(x, np.array(loss_list), label="train")
+plt.plot(x, np.array(val_loss_list), label="test")
+plt.plot(x, np.array(val_acc_list), label="acc")
 plt.legend() # 凡例
 plt.xlabel("epoch")
 plt.ylabel("score")
-plt.savefig('figure_imagenet_.png')
-print("save to ./figure_image_net.png")
+plt.savefig('figureuec.png')
+print("save to ./figureuec.png")
 
 dataiter = iter(testloader)
 images, labels = dataiter.next()
@@ -144,12 +141,12 @@ def denorm(x):
 
 IMAGE_PATH = "."
 #torchvision.utils.save_image(self.denorm(A.data.cpu()), '{}/real_{}.png'.format(IMAGE_PATH, j+1))
-save_file = '{}/imnet_{}e_{}b.png'.format(IMAGE_PATH, epoch, batch_size)
+save_file = '{}/real_{}e_{}b.png'.format(IMAGE_PATH, epoch, batch_size)
 torchvision.utils.save_image(denorm(images.data.cpu()), save_file)
 
 
 print("save to ", save_file)
 print(labels)
 
-torch.save(model.state_dict(), './Models/imagenet_model.ckpt')
-print("save to ./Models/imagenet_model.ckpt")
+torch.save(model.state_dict(), './Models/model.ckpt')
+print("save to ./Models/model.ckpt")

@@ -59,8 +59,6 @@ def train(train_loader):
 
         # forward + backward + optimize
         outputs = model(inputs)
-        print(labels)
-        print(labels.shape)
         loss = criterion(outputs, labels)
         loss.backward()
         optimizer.step()

@@ -9,7 +9,10 @@ from torch.autograd import Variable
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
+import torchvision
 import torchvision.models as models
+import torchvision.transforms as transforms
+
 import sys, os
 import numpy as np
 
@@ -17,14 +20,16 @@ import dataload
 import networks
 
 
-epoch = 1
-batch_size = 1
+epoch = 100
+batch_size = 10
+works = 4
 learning_rate = 0.001
 
-os.environ["CUDA_VISIBLE_DEVICES"]="0" #,2,3"
+os.environ["CUDA_VISIBLE_DEVICES"]="1" #,2,3"
 device = 'cuda' if t.cuda.is_available() else 'cpu'
 transform = transforms.Compose(
-    [transforms.ToTensor(),
+    [transforms.Resize((224, 224)),
+     transforms.ToTensor(),
      transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 
 datadir = "./data/UECFOOD100"
@@ -32,70 +37,52 @@ uecfood= dataload.MyDataset(datadir, transform)
 train_size = int(0.8 * len(uecfood))
 test_size = len(uecfood)-train_size  
 train, test = t.utils.data.random_split(uecfood, [train_size, test_size])
-train_loader = tu.DataLoader(train, batch_size=batch_size, shuffle=True, num_workers=4)
-test_loader = tu.DataLoader(test, batch_size=batch_size, shuffle=True, num_workers=4)
-#dataloader = tu.DataLoader(uecfood, batch_size=10, shuffle=True, num_workers=4)
+train_loader = DataLoader(train, batch_size=batch_size, shuffle=True, num_workers=works)
+test_loader = DataLoader(test, batch_size=batch_size, shuffle=True, num_workers=works)
 
 
 
 model = models.vgg16(pretrained=True)
-
-model = networks.VGG16().to(device)
+model.classifier[6] = nn.Linear(4096,100)
+model = model.to(device)
+print(model)
 criterion = nn.CrossEntropyLoss()
 optimizer = t.optim.Adam(model.parameters(), lr=learning_rate)
-#print(model)
-#inputs = t.randn(1, 3, 224, 224)
-#out = model(inputs)
-#print(out)
 
 def train(train_loader):
     model.train()
-    running_loss = 0
+    running_loss = 0.0
     for batch_idx, (images, labels) in enumerate(train_loader):
-        # for im in images:
-        #     im = np.asarray(im)
-        #     print(im.shape)
-        #     cv2.imwrite('red.jpg', im)
-        #images = images.transpose(1, 3) # (1,224,224,3) --> (1,3,224,224)
-        images = images.to(device=device, dtype=t.float)
+        images = images.to(device)
         labels = labels.to(device)
-        #print(batch_idx, sample_batched) #['image'].size(),sample_batched['landmarks'].size())
-        #optimizer.zero_grad()
+
+        optimizer.zero_grad()
         outputs = model(images)
-        print(labels)
 
         loss = criterion(outputs, labels)
+        loss.backward()
+        optimizer.step()
         running_loss += loss.item()
-        print("train: ", loss)
-        #print(dir(model.fc4.named_parameters))
-        #print(model.fc4[0])
-        #print(model.fc4[0].weight.shape)
-        #print(model.fc4.modules)
-        #print(model.parameters()[0].data)
+
         # for param in model.parameters():
         #   print(param.__class__.__name__)
         #   print(param.data)
 
-        loss.backward()
-        optimizer.step()
         #
     #####
-        
     train_loss = running_loss / len(train_loader)
     return train_loss
 
 
 
-def valid(test_loader):
+def test(test_loader):
     model.eval()
     running_loss = 0
     correct = 0
     total = 0
     with t.no_grad():
         for batch_idx, (images, labels) in enumerate(test_loader):
-            images = images.transpose(1, 3) # (1,224,224,3) --> (1,3,224,224)
-            # images = Variable(images)
-            images = images.to(device=device, dtype=t.float)
+            images = images.to(device)
             labels = labels.to(device)
             
             outputs = model(images)
@@ -117,9 +104,9 @@ def valid(test_loader):
 loss_list = []
 val_loss_list = []
 val_acc_list = []
-for epoch in range(num_epochs):
+for epoch in range(epoch):
     loss = train(train_loader)
-    val_loss, val_acc = valid(test_loader)
+    val_loss, val_acc = test(test_loader)
 
     print('epoch %d, loss: %.4f val_loss: %.4f val_acc: %.4f' % (epoch, loss, val_loss, val_acc))
     
@@ -127,3 +114,36 @@ for epoch in range(num_epochs):
     loss_list.append(loss)
     val_loss_list.append(val_loss)
     val_acc_list.append(val_acc)
+
+print('Finished Training')
+x = []
+for i in range(0, len(loss_list)):
+    x.append(i)
+x = np.array(x)
+plt.plot(x, np.array(loss_list), label="train")
+plt.plot(x, np.array(val_loss_list), label="test")
+#plt.plot(x, np.array(val_acc_list), label="acc")
+plt.legend() # 凡例
+plt.xlabel("epoch")
+plt.ylabel("score")
+plt.savefig('figurefinetune.png')
+print("save to ./figurefinetune.png")
+
+dataiter = iter(test_loader)
+images, labels = dataiter.next()
+
+def denorm(x):
+    out = (x + 1) / 2
+    return out.clamp(0, 1)
+
+IMAGE_PATH = "."
+#torchvision.utils.save_image(self.denorm(A.data.cpu()), '{}/real_{}.png'.format(IMAGE_PATH, j+1))
+save_file = '{}/finetune{}e_{}b.png'.format(IMAGE_PATH, epoch, batch_size)
+torchvision.utils.save_image(denorm(images.data.cpu()), save_file)
+
+
+print("save to ", save_file)
+print(labels)
+
+t.save(model.state_dict(), './Models/finetuned.ckpt')
+print("save to ./Models/finetuned.ckpt")
