@@ -22,18 +22,20 @@ import networks
 
 epoch = 100
 batch_size = 10
-works = 4
-learning_rate = 0.001
+works = 8
+learning_rate = 0.0001
 
 os.environ["CUDA_VISIBLE_DEVICES"]="1" #,2,3"
 device = 'cuda' if t.cuda.is_available() else 'cpu'
 transform = transforms.Compose(
-    [transforms.Resize((224, 224)),
+    [transforms.Resize((224)),
+     transforms.CenterCrop(224),
      transforms.ToTensor(),
      transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 
 datadir = "./data/UECFOOD100"
-uecfood= dataload.MyDataset(datadir, transform)
+#uecfood= dataload.MyDataset(datadir, transform)
+uecfood= dataload.Cifarset(datadir, transform)
 train_size = int(0.8 * len(uecfood))
 test_size = len(uecfood)-train_size  
 train, test = t.utils.data.random_split(uecfood, [train_size, test_size])
@@ -52,7 +54,8 @@ optimizer = t.optim.Adam(model.parameters(), lr=learning_rate)
 def train(train_loader):
     model.train()
     running_loss = 0.0
-    for batch_idx, (images, labels) in enumerate(train_loader):
+    #for batch_idx, (images, labels) in enumerate(train_loader):
+    for batch_idx, (images, labels) in enumerate(train_loader, 0):
         images = images.to(device)
         labels = labels.to(device)
 

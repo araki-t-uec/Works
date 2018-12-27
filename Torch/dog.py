@@ -12,22 +12,54 @@ import torchvision.transforms as transforms
 import os
 import dataload
 import networks
-
+import cv2
 os.environ["CUDA_VISIBLE_DEVICES"]="1" #,2,3"
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 transform = transforms.Compose(
     [transforms.Resize((224,224)),
-        transforms.ToTensor(),
+     transforms.ToTensor(),
      transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 
-datadir = "./data/Dogs/"
+datadir = "./data/Dogs/Movies"
+classes = ['Car', 'Drink', 'Feed', 'LookLeft', 'LookRight', 'Pet', 'PlayBall', 'Shake', 'Sniff', 'Walk']
+class_num = len(classes)
+train_x = []
+train_y = []
+savename = "dog_mean"
+#savename = "plt_test"
+
+path = [f for f in os.listdir(datadir) if os.path.isfile(os.path.join(datadir, f))]
+for j in path:
+    print(j)
+    n = 0
+    frames = []
+    path = os.path.join(datadir,j)
+    #        print(path)
+    cap = cv2.VideoCapture(path)
+    ret, frame = cap.read()
+    while(ret == True):
+        #print("hoge")
+        #gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        #frame = img_to_array(frame)
+        #frame = cv2.resize(frame, (24,24))
+        frames.append(frame)
+        ret, frame = cap.read()
+        # cv2.imwrite('frame.png',gray)
+    # frames = (np.asarray(frames).mean(axis=0)) # the average overall frames
+    frames = np.asarray(frames)
+    #train_x.append(frames)
+    #train_y.append(i)
+    cap.release()
+    print(frames.shape)
+#exit()
+
+
 dataset = dataload.AVIload(datadir, transform)
 train_size = int(0.8 * len(dataset))
 test_size = len(dataset)-train_size  
 traindata, testdata = torch.utils.data.random_split(dataset, [train_size, test_size])
 
-exit()
 
 batch_size = 1
 num_workers= 2

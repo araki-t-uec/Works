@@ -14,11 +14,8 @@ class MyDataset(torch.utils.data.Dataset):
             i_files = os.listdir(os.path.join(data_dir, i))
             for j in i_files:
                 self.image_dataframe.append([j,i])
-
-        # self.transform = transforms.Compose([transforms.ToTensor(),
-        #                                      transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+                
         self.transform = transform
-
         
     def __len__(self):
         return len(self.image_dataframe)
@@ -34,8 +31,7 @@ class MyDataset(torch.utils.data.Dataset):
         # #画像へ処理を加える
         if self.transform:
             image = self.transform(image)
-
-        return image, int(label)-1
+        return image, np.array(int(label)-1)
 
 
 class YourDataset(torch.utils.data.Dataset):
@@ -157,3 +153,10 @@ class Cifarset(torch.utils.data.Dataset):
             image = self.transform(image)
 
         return image, np.array(int(label)-1)
+
+    
+class Videoset(torch.utils.data.Dataset):
+    def __init__(self, data_dir, transform=None):
+        self.image_dataframe = []
+        self.data_dir = data_dir
+        class_dirs = [f for f in os.listdir(data_dir) if os.path.isdir(os.path.join(data_dir, f))]
