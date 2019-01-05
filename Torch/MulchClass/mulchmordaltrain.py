@@ -4,7 +4,7 @@
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import torch as t
+import torch
 from torch.autograd import Variable
 import torch.nn as nn
 import torch.nn.functional as F
@@ -21,21 +21,25 @@ from opts import parse_opts
 
 
 opt = parse_opts()
-device = 'cuda' if t.cuda.is_available() else 'cpu'
+#device = 'cuda' if torch.cuda.is_available() else 'cpu'
 if opt.mulch_gpu == False:
     gpu_num = opt.gpu
-    os.environ["CUDA_VISIBLE_DEVICES"]=str(gpu_num) #,2,3"
+    os.environ["CUDA_VISIBLE_DEVICES"]=str(gpu_num) # 1"
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
+ 
 epochs = opt.epochs
 batch_size = opt.batch_size 
 works = opt.num_works
 learning_rate = opt.lr
 threthold = opt.threthold
 IMAGE_PATH = "./Img/"
+still_dir = "Resque/Labeled/NoLabeled/"
+optic_dir = "Resque/Labeled/Cv2_Optical/"
 result_path = opt.result_path
 annotation_test = opt.annotation_file+".txt"
 annotation_train = opt.annotation_file+"V.txt"
-corename = opt.save_name+"_"+opt.annotation_file.split("/")[-1]+"_th-"+str(int(threthold*10))+"_lr-"+str(str(int(learning_rate**(-1))).count("0"))
+corename = opt.save_name+"_"+opt.annotation_file.split("/")[-1]+"_lr-"+str(str(int(learning_rate**(-1))).count("0"))
 texts = "{}epoch, {}batch, {}num_works, lr={}, threthold={}"
 print(corename)
 print(texts.format(epochs, batch_size, works, learning_rate, threthold))
@@ -66,7 +70,7 @@ model.classifier[6] = nn.Linear(4096, classes_num)
 #print(model)
 #print(model.classifier[6])
 if opt.mulch_gpu == "True":
-    print("Let's use", t.cuda.device_count(), "GPUs!")
+    print("Let's use", torch.cuda.device_count(), "GPUs!")
     model = nn.DataParallel(model) # make parallel
     #cudnn.benchmark = True
 model = model.to(device)
@@ -74,12 +78,12 @@ model = model.to(device)
 
 ## Load dataset.
 #train_dataset = dataload.MulchVideoset(annotation_train, data_dir, classes, transform_train)
-train_dataset = dataload.Oneovern(annotation_train, data_dir, classes, transform_train)
-test_dataset = dataload.MulchVideoset(annotation_test, data_dir, classes, transform_test)
+train_dataset = dataload.Stillandoptic(annotation_train, still_dir, optic_dir, classes, transform_train)
+test_dataset = dataload.Stillandoptic(annotation_test, still_dir, optic_dir, classes, transform_test)
 
 #train_size = int(0.8 * len(dataset))
 #test_size = len(dataset)-train_size  
-#train, test = t.utils.data.random_split(dataset, [train_size, test_size])
+#train, test = torch.utils.data.random_split(dataset, [train_size, test_size])
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=works)
 test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True, num_workers=works)
 
@@ -87,7 +91,7 @@ test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True, num_
 
 
 criterion = nn.CrossEntropyLoss()
-optimizer = t.optim.Adam(model.parameters(), lr=learning_rate)
+optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
 
 def display(train_loader, namae):
@@ -110,7 +114,7 @@ def display(train_loader, namae):
     imshow(out)
 
 # display(train_loader, opt.annotation_file.split("/")[-1])
-display(train_loader, corename)
+#display(train_loader, corename)
 
 def nofk(output, gt_labels, threthold=0.5):
     return(np.where(output < threthold, 0, 1))
@@ -119,8 +123,10 @@ def train(train_loader):
     model.train()
     running_loss = 0
     for batch_idx, (images, labels) in enumerate(train_loader):
-        #images = images.transpose(1, 3) # (1,224,224,3) --> (1,3,224,224)
-        images = images.to(device)
+        still_images = images[0]
+        optic_images = images[1:]
+        
+        images = still_images.to(device)
         labels = labels.to(device)
 
         # zero the parameter gradients
@@ -128,6 +134,11 @@ def train(train_loader):
         # forward + backward + optimize
         
         outputs = model(images)
+        for opt_image in optic_images:
+            opt = opt_image.to(device)
+            optputs = model(opt)
+            opt = opt.cpu() ## release to memory
+            outputs = torch.add(outputs, optputs)
         
         #loss = criterion(outputs, labels)
         loss = 1*F.multilabel_soft_margin_loss(outputs, labels.cuda(non_blocking=True).float())
@@ -151,14 +162,21 @@ def test(test_loader):
     true_positives = [0]*classes_num  # Count true positive relevant for the Recall and Precision
     #recall = 0
     #total = 0
-    with t.no_grad():
+    with torch.no_grad():
         for batch_idx, (images, labels) in enumerate(test_loader):
-            #images = images.transpose(1, 3) # (1,224,224,3) --> (1,3,224,224)
-            # images = Variable(images)
-            images = images.to(device)
+            still_images = images[0]
+            optic_images = images[1:]
+
+            images = still_images.to(device)
             labels = labels.to(device)
             outputs = model(images)
+            for opt_image in optic_images:
+                opt = opt_image.to(device)
+                optputs = model(opt)
+                opt = opt.cpu() ## release to memory
+                outputs = torch.add(outputs, optputs)
 
+                
             #loss = criterion(outputs, labels)
             loss = 1*F.multilabel_soft_margin_loss(outputs, labels.cuda(non_blocking=True).float())
             running_loss += loss.item()
@@ -180,27 +198,27 @@ def test(test_loader):
     return val_loss, precision, recall
 
 
-def exe(test_loader):
-    model.eval()
-    predicts = {}
-    with t.no_grad():
-        for batch_idx, (images, labels) in enumerate(test_loader):
-            images = images.to(device)
-            labels = labels.to(device)
+# def exe(test_loader):
+#     model.eval()
+#     predicts = {}
+#     with torch.no_grad():
+#         for batch_idx, (images, labels) in enumerate(test_loader):
+#             images = images.to(device)
+#             labels = labels.to(device)
             
-            outputs = model(images)
-            predicted = outputs.max(1, keepdim=True)[1]
+#             outputs = model(images)
+#             predicted = outputs.max(1, keepdim=True)[1]
 
-            for i in range(labels.shape[0]):
-                label = labels[i].data.cpu().item()
-                try:    
-                    predicts[label].append(predicted[i].data.cpu().item())
-                except:
-                    predicts[label] = []
-                    predicts[label].append(predicted[i].data.cpu().item())
-            print(predicts[label])
+#             for i in range(labels.shape[0]):
+#                 label = labels[i].data.cpu().item()
+#                 try:    
+#                     predicts[label].append(predicted[i].data.cpu().item())
+#                 except:
+#                     predicts[label] = []
+#                     predicts[label].append(predicted[i].data.cpu().item())
+#             print(predicts[label])
 
-    return predicts
+#     return predicts
 
 
 
@@ -239,7 +257,7 @@ plt.savefig(os.path.join(IMAGE_PATH,corename+'.png'))
 print("save to "+corename+".png")
 
 ### Save a model.
-t.save(model.state_dict(), os.path.join(result_path+corename+'.ckpt'))
+torch.save(model.state_dict(), os.path.join(result_path+corename+'.ckpt'))
 print("save to "+os.path.join(result_path+corename+'.ckpt'))
 
 

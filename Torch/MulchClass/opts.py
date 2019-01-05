@@ -20,21 +20,15 @@ def parse_opts():
         type=str,
         help='Result directory path')
     parser.add_argument(
-        '--n_classes',
-        default=11,
-        type=int,
-    )
-    parser.add_argument(
         '--lr',
-        default=0.0001,
+        default=0.00001,
         type=float,
         help=
         'Initial learning rate (divided by 10 while training by lr scheduler)')
-    parser.add_argument('--momentum', default=0.9, type=float, help='Momentum')
     parser.add_argument(
         '--gpu', default=0, type=str)
     parser.add_argument(
-        '--batch_size', default=32, type=int, help='Batch Size')
+        '--batch_size', default=50, type=int, help='Batch Size')
     parser.add_argument(
         '--epochs',
         default=60,
