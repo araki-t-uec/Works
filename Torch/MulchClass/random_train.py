@@ -33,20 +33,21 @@ learning_rate = opt.lr
 threthold = opt.threthold
 IMAGE_PATH = "./Img/"
 result_path = opt.result_path
-annotation_test = opt.annotation_file+".txt"
-annotation_train = opt.annotation_file+"V.txt"
+annotation_test = opt.annotation_file
+#annotation_test = opt.annotation_file+".txt"
+#annotation_train = opt.annotation_file+"V.txt"
 corename = opt.save_name+"_"+opt.annotation_file.split("/")[-1]+"_th-"+str(int(threthold*10))+"_lr-"+str(str(int(learning_rate**(-1))).count("0"))
 texts = "{}epoch, {}batch, {}num_works, lr={}, threthold={}"
 print(corename)
 print(texts.format(epochs, batch_size, works, learning_rate, threthold))
 
-transform_train = transforms.Compose(
-    [transforms.Resize(224),
-     transforms.Pad(16),
-     transforms.RandomCrop((224)),
-     transforms.ToTensor(),
-     transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)), # imagenet
-     ])
+# transform_train = transforms.Compose(
+#     [transforms.Resize(224),
+#      transforms.Pad(16),
+#      transforms.RandomCrop((224)),
+#      transforms.ToTensor(),
+#      transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)), # imagenet
+#      ])
 transform_test = transforms.Compose(
     [transforms.Resize((224, 224)),
      transforms.ToTensor(),
@@ -73,14 +74,15 @@ model = model.to(device)
 
 
 ## Load dataset.
-train_dataset = dataload.MulchVideoset(annotation_train, data_dir, classes, transform_train)
-test_dataset = dataload.MulchVideoset(annotation_test, data_dir, classes, transform_test)
+#train_dataset = dataload.MulchVideoset(annotation_train, data_dir, classes, transform_train)
+#test_dataset = dataload.MulchVideoset(annotation_test, data_dir, classes, transform_test)
+dataset = dataload.MulchVideoset(annotation_test, data_dir, classes, transform_test)
 
-#train_size = int(0.8 * len(dataset))
-#test_size = len(dataset)-train_size  
-#train, test = t.utils.data.random_split(dataset, [train_size, test_size])
-train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=works)
-test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True, num_workers=works)
+train_size = int(0.8 * len(dataset))
+test_size = len(dataset)-train_size  
+train, test = t.utils.data.random_split(dataset, [train_size, test_size])
+train_loader = DataLoader(train, batch_size=batch_size, shuffle=True, num_workers=works)
+test_loader = DataLoader(test, batch_size=batch_size, shuffle=True, num_workers=works)
 
 
 
@@ -125,7 +127,6 @@ def train(train_loader):
         # zero the parameter gradients
         optimizer.zero_grad()
         # forward + backward + optimize
-        
         outputs = model(images)
         
         #loss = criterion(outputs, labels)

@@ -3,28 +3,27 @@ import cv2
 import os, sys
 
 
-savedir="../Img/Cv2_Optical"
-
-receive_dir = sys.argv
+savedir="../data/Dogs/Resque/Labeled/Cv2_Optical/"
 
 filelist = []
-if len(receive_dir) > 1:
-    video_dir = receive_dir[1]
-    paths = os.listdir(video_dir)
-    for j in paths:
-        filelist.append(os.path.join(video_dir, j))
-else:
-    video_dir="../data/Dogs/Resque/Annotated"
-    paths = [f for f in os.listdir(video_dir) if os.path.isdir(os.path.join(video_dir, f))]
-    for i in paths:
-        for j in os.listdir(os.path.join(video_dir, i)):
-            filelist.append(os.path.join(video_dir, i, j))
-
+#receive_dir = sys.argv
+# if len(receive_dir) > 1:
+#     video_dir = receive_dir[1]
+#     paths = os.listdir(video_dir)
+#     for j in paths:
+#         filelist.append(os.path.join(video_dir, j))
+# else:
+#     video_dir="../data/Dogs/Resque/Annotated"
+#     paths = [f for f in os.listdir(video_dir) if os.path.isdir(os.path.join(video_dir, f))]
+#     for i in paths:
+#         for j in os.listdir(os.path.join(video_dir, i)):
+#             filelist.append(os.path.join(video_dir, i, j))
+filelist = ["../data/Dogs/Resque/20150801.mp4", "../data/Dogs/Resque/20160710.mp4", "../data/Dogs/Resque/20161111.mp4"]
 print(filelist)
 
 ## filelist ---> [ '../data/eat-drink/361.mp4', '../data/bark/ts340.mp4',...]
 for filename in filelist:
-    fatherpath =  os.path.join(savedir, filename.split("/")[-2])
+    fatherpath =  os.path.join(savedir, filename.split("/")[-1].split(".")[0])
     cmd = 'mkdir -p ' + fatherpath
     os.system(cmd)
     print(filename, " to ", fatherpath)
@@ -64,7 +63,6 @@ for filename in filelist:
         hsv[...,2] = cv2.normalize(mag,None,0,255,cv2.NORM_MINMAX)
         rgb = cv2.cvtColor(hsv,cv2.COLOR_HSV2BGR)
             
-            
             #p1, st, err = cv2.calcOpticalFlowPyrLK(old_gray, frame_gray, p0, None, **lk_params)
 #        except:
 #            print("Error : cv2.calcOpricalFlowPyrLK: skip this file")
@@ -90,11 +88,13 @@ for filename in filelist:
         #    break
 
     
-        savepath = os.path.join(fatherpath, filename.split("/")[-1].split(".")[0])
-        savename = "%04d.jpg"%counter
+#        savepath = os.path.join(fatherpath, filename.split("/")[-1].split(".")[0])
+        savepath = fatherpath
+        savename = filename.split("/")[-1].split(".")[0]+"_%06d.jpg"%counter
         savefile = os.path.join(savepath, savename)
-        cmd = 'mkdir -p ' + savepath
-        os.system(cmd)
+        print(savefile)
+        #cmd = 'mkdir -p ' + savepath
+        #os.system(cmd)
         
         #cv2.imwrite(savefile, img)
         cv2.imwrite(savefile, rgb)

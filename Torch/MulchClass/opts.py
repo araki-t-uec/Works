@@ -16,7 +16,7 @@ def parse_opts():
         help='Annotation file path [Annotation/20150810 | Annotation/20160710 | Annotation/20161111]')
     parser.add_argument(
         '--result_path',
-        default='./Result/',
+        default='./Results/',
         type=str,
         help='Result directory path')
     parser.add_argument(
@@ -41,14 +41,9 @@ def parse_opts():
         type=int,
         help='Number of total epochs to run')
     parser.add_argument(
-        '--num_works', default=30, type=int, help='Number of works')
+        '--num_works', default=50, type=int, help='Number of works')
     parser.add_argument(
         '--threthold', default=0.5, type=float, help='threthold for N-ok-K')
-    parser.add_argument(
-        '--checkpoint',
-        default=10,
-        type=int,
-        help='Trained model is saved at every this epochs.')
     parser.add_argument(
         '--save_name',
         default="resquedog",
