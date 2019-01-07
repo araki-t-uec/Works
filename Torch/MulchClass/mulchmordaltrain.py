@@ -16,7 +16,6 @@ import sys, os
 import numpy as np
 import dataload
 #import networks
-
 from opts import parse_opts
 
 
@@ -41,6 +40,12 @@ annotation_test = opt.annotation_file+".txt"
 annotation_train = opt.annotation_file+"V.txt"
 corename = opt.save_name+"_"+opt.annotation_file.split("/")[-1]+"_lr-"+str(str(int(learning_rate**(-1))).count("0"))
 texts = "{}epoch, {}batch, {}num_works, lr={}, threthold={}"
+
+## Loss weights
+w_mulch = 1
+w_still = 1
+w_optic = 1
+
 print(corename)
 print(texts.format(epochs, batch_size, works, learning_rate, threthold))
 
@@ -67,19 +72,23 @@ classes = {'bark':0,'cling':1,'command':2,'eat-drink':3,'look_at_handler':4,'run
 classes_num = 11
 model = models.vgg16(pretrained=True)
 model.classifier[6] = nn.Linear(4096, classes_num)
+opt_model = models.vgg16(pretrained=True)
+opt_model.classifier[6] = nn.Linear(4096, classes_num)
 #print(model)
 #print(model.classifier[6])
 if opt.mulch_gpu == "True":
     print("Let's use", torch.cuda.device_count(), "GPUs!")
     model = nn.DataParallel(model) # make parallel
+    opt_model = nn.DataParallel(opt_model) # make parallel
     #cudnn.benchmark = True
 model = model.to(device)
+opt_model = opt_model.to(device)
 
 
 ## Load dataset.
 #train_dataset = dataload.MulchVideoset(annotation_train, data_dir, classes, transform_train)
-train_dataset = dataload.Stillandoptic(annotation_train, still_dir, optic_dir, classes, transform_train)
-test_dataset = dataload.Stillandoptic(annotation_test, still_dir, optic_dir, classes, transform_test)
+train_dataset = dataload.Stlandopt(annotation_train, still_dir, optic_dir, classes, transform_train)
+test_dataset = dataload.Stlandopt(annotation_test, still_dir, optic_dir, classes, transform_test)
 
 #train_size = int(0.8 * len(dataset))
 #test_size = len(dataset)-train_size  
@@ -123,6 +132,7 @@ def train(train_loader):
     model.train()
     running_loss = 0
     for batch_idx, (images, labels) in enumerate(train_loader):
+        nagasa = len(images)
         still_images = images[0]
         optic_images = images[1:]
         
@@ -134,14 +144,18 @@ def train(train_loader):
         # forward + backward + optimize
         
         outputs = model(images)
+        loss_still = 1*F.multilabel_soft_margin_loss(outputs, labels.cuda(non_blocking=True).float())
         for opt_image in optic_images:
             opt = opt_image.to(device)
-            optputs = model(opt)
+            optputs = opt_model(opt)
             opt = opt.cpu() ## release to memory
             outputs = torch.add(outputs, optputs)
-        
+        outputs = outputs/nagasa
         #loss = criterion(outputs, labels)
-        loss = 1*F.multilabel_soft_margin_loss(outputs, labels.cuda(non_blocking=True).float())
+        loss_mulch = 1*F.multilabel_soft_margin_loss(outputs, labels.cuda(non_blocking=True).float())
+        loss_optic = 1*F.multilabel_soft_margin_loss(optputs, labels.cuda(non_blocking=True).float())
+
+        loss = w_mulch*loss_mulch + w_still*loss_still + w_optic*loss_optic
 
         loss.backward()
         optimizer.step()
@@ -160,30 +174,35 @@ def test(test_loader):
     relevant = [0]*classes_num # Count ground trues for calculate the Recall
     selected = [0]*classes_num # Count selected elements for calculate the Precision
     true_positives = [0]*classes_num  # Count true positive relevant for the Recall and Precision
-    #recall = 0
-    #total = 0
     with torch.no_grad():
         for batch_idx, (images, labels) in enumerate(test_loader):
+            nagasa = len(images)
             still_images = images[0]
             optic_images = images[1:]
 
             images = still_images.to(device)
             labels = labels.to(device)
             outputs = model(images)
+            loss_still = 1*F.multilabel_soft_margin_loss(outputs, labels.cuda(non_blocking=True).float())
+
             for opt_image in optic_images:
                 opt = opt_image.to(device)
                 optputs = model(opt)
                 opt = opt.cpu() ## release to memory
                 outputs = torch.add(outputs, optputs)
-
+            outputs = outputs/nagasa
                 
             #loss = criterion(outputs, labels)
-            loss = 1*F.multilabel_soft_margin_loss(outputs, labels.cuda(non_blocking=True).float())
+            loss_mulch = 1*F.multilabel_soft_margin_loss(outputs, labels.cuda(non_blocking=True).float())
+            loss_optic = 1*F.multilabel_soft_margin_loss(optputs, labels.cuda(non_blocking=True).float())
+
+            loss = w_mulch*loss_mulch + w_still*loss_still + w_optic*loss_optic
+
             running_loss += loss.item()
 
             labels = labels.cpu().numpy()
             sigmoided = F.sigmoid(outputs)
-
+            
             predicted = nofk(sigmoided, labels, threthold=threthold)
             #print((labels * predicted).tolist())
             #true_positives.extend((labels * predicted).tolist())
@@ -227,6 +246,8 @@ loss_list = []
 val_loss_list = []
 precision_list = []
 recall_list = []
+#from tensorboard_logger import configure, log_value
+#configure("Log/runs/run-1234", flush_secs=5)
 for epoch in range(epochs):
     loss = train(train_loader)
     val_loss, precision, recall = test(test_loader)
@@ -234,6 +255,8 @@ for epoch in range(epochs):
     print('epoch %d, loss: %.4f, val_loss: %.4f, precision: %s, recall: %s' % (epoch, loss, val_loss, list(precision), list(recall)))
     
     # logging
+#    log_value('loss', loss, epoch)
+#    log_value('val_loss', val_loss, epoch)
     loss_list.append(loss)
     val_loss_list.append(val_loss)
     precision_list.append(precision)
@@ -257,74 +280,14 @@ plt.savefig(os.path.join(IMAGE_PATH,corename+'.png'))
 print("save to "+corename+".png")
 
 ### Save a model.
-torch.save(model.state_dict(), os.path.join(result_path+corename+'.ckpt'))
+torch.save(model.state_dict(), os.path.join(result_path+corename+'_still.ckpt'))
+print("save to "+os.path.join(result_path+corename+'.ckpt'))
+torch.save(opt_model.state_dict(), os.path.join(result_path+corename+'_optic.ckpt'))
 print("save to "+os.path.join(result_path+corename+'.ckpt'))
 
 
 exit()
 
-
-dataiter = iter(test_loader)
-images, labels = dataiter.next()
-
-def denorm(x):
-    out = (x + 1) / 2
-    return out.clamp(0, 1)
-
-#torchvision.utils.save_image(self.denorm(A.data.cpu()), '{}/real_{}.png'.format(IMAGE_PATH, j+1))
-save_file = os.path.join(IMAGE_PATH, corename+"_denorm.jpg")
-torchvision.utils.save_image(denorm(images.data.cpu()), save_file)
-
-print("save to ", save_file)
-
-
-
-def draw_heatmap(data, row_labels, column_labels):
-    # 描画する
-    fig, ax = plt.subplots()
-    #heatmap = ax.pcolor(data, cmap=plt.cm.Blues)
-    heatmap = ax.pcolor(data, cmap=plt.cm.Reds)
-
-    ax.set_xticks(np.arange(data.shape[0]) + 0.5, minor=False)
-    ax.set_yticks(np.arange(data.shape[1]) + 0.5, minor=False)
-
-    ax.invert_yaxis()
-    ax.xaxis.tick_top()
-
-    ax.set_xticklabels(row_labels, minor=False)
-    ax.set_yticklabels(column_labels, minor=False)
-    #plt.show()
-    plt.savefig(IMAGE_PATH+corename+'_heatmap.png')
-
-    return heatmap
-
-
-## Make heatmap image.
-acc = exe(test_loader)
-#print(acc)
-arra = [0]*(classes_num) #]*(classes_num)
-for i in acc:
-    arra[i] = [0]*(classes_num)
-    for j in acc[i]:
-        arra[i][j]+=1
-
-        
-#arra = np.array(arra)
-print(np.array(arra))
-## Softmax
-for i in range(len(arra)):
-
-    total = sum(arra[i])
-    for j in range(len(arra[i])):
-        arra[i][j] = arra[i][j]/total
-#print(arra)
-
-arra = np.array(arra)
-#print(acc)
-print(arra)
-
-
-
 classes = ['bark','cling','comand','eat','handlr','run','victim','shake','sniff','stop','walk']
-draw_heatmap(arra, classes, classes)
+
 

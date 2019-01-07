@@ -30,16 +30,21 @@ epochs = opt.epochs
 batch_size = opt.batch_size 
 works = opt.num_works
 learning_rate = opt.lr
+swing_rate = opt.swing_rate
+swing_period = opt.swing_period
 threthold = opt.threthold
 IMAGE_PATH = "./Img/"
 result_path = opt.result_path
 annotation_test = opt.annotation_file+".txt"
 annotation_train = opt.annotation_file+"V.txt"
-corename = opt.save_name+"_"+opt.annotation_file.split("/")[-1]+"_th-"+str(int(threthold*10))+"_lr-"+str(str(int(learning_rate**(-1))).count("0"))
+addtext = ""
+if swing_rate != 1.0:
+    addtext = "_sr-{}_sp-{}".format(int(swing_rate*10), swing_period)
+    
+corename = opt.save_name+"_"+opt.annotation_file.split("/")[-1]+"_lr-"+str(str(int(learning_rate**(-1))).count("0"))+addtext
 texts = "{}epoch, {}batch, {}num_works, lr={}, threthold={}"
 print(corename)
 print(texts.format(epochs, batch_size, works, learning_rate, threthold))
-
 transform_train = transforms.Compose(
     [transforms.Resize(224),
      transforms.Pad(16),
@@ -86,10 +91,6 @@ test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True, num_
 
 
 
-criterion = nn.CrossEntropyLoss()
-optimizer = t.optim.Adam(model.parameters(), lr=learning_rate)
-
-
 def display(train_loader, namae):
     def imshow(inp, title=None):
         """Imshow for Tensor."""
@@ -115,9 +116,15 @@ display(train_loader, corename)
 def nofk(output, gt_labels, threthold=0.5):
     return(np.where(output < threthold, 0, 1))
 
-def train(train_loader):
+def train(train_loader, learning_rate):
     model.train()
     running_loss = 0
+    
+
+    criterion = nn.CrossEntropyLoss()
+    optimizer = t.optim.Adam(model.parameters(), lr=learning_rate)
+    
+
     for batch_idx, (images, labels) in enumerate(train_loader):
         #images = images.transpose(1, 3) # (1,224,224,3) --> (1,3,224,224)
         images = images.to(device)
@@ -210,11 +217,14 @@ val_loss_list = []
 precision_list = []
 recall_list = []
 for epoch in range(epochs):
-    loss = train(train_loader)
+    loss = train(train_loader, learning_rate)
     val_loss, precision, recall = test(test_loader)
 
     print('epoch %d, loss: %.4f, val_loss: %.4f, precision: %s, recall: %s' % (epoch, loss, val_loss, list(precision), list(recall)))
-    
+
+    if epochs%(swing_period+1) == swing_period:
+        learning_rate = learning_rate = swing_rate
+        print("chenge learning_rate! to ", learning_rate)
     # logging
     loss_list.append(loss)
     val_loss_list.append(val_loss)

@@ -26,6 +26,18 @@ def parse_opts():
         help=
         'Initial learning rate (divided by 10 while training by lr scheduler)')
     parser.add_argument(
+        '--swing_rate',
+        default=1.0,
+        type=float,
+        help=
+        'learning rate * down_rate. default=1.0 (no swing)')
+    parser.add_argument(
+        '--swing_period',
+        default=100,
+        type=int,
+        help=
+        'piriod of down learning_rate. default=100')
+    parser.add_argument(
         '--gpu', default=0, type=str)
     parser.add_argument(
         '--batch_size', default=50, type=int, help='Batch Size')
