@@ -10,3 +10,4 @@ vision
 *.mp4
 *.wav
 Log
+*.ckpt
