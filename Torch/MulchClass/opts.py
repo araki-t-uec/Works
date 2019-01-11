@@ -52,7 +52,7 @@ def parse_opts():
         '--threthold', default=0.5, type=float, help='threthold for N-ok-K')
     parser.add_argument(
         '--save_name',
-        default="resquedog",
+        default="test",
         type=str,
         help='Core name to save for: image, logs and other outputs')
     parser.add_argument(

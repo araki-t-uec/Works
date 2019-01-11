@@ -16,15 +16,16 @@ import sys, os
 import numpy as np
 import dataload
 #import networks
-
 from opts import parse_opts
 
 
 opt = parse_opts()
-device = 'cuda' if t.cuda.is_available() else 'cpu'
+#device = 'cuda' if t.cuda.is_available() else 'cpu'
 if opt.mulch_gpu == False:
     gpu_num = opt.gpu
     os.environ["CUDA_VISIBLE_DEVICES"]=str(gpu_num) #,2,3"
+device = 'cuda' if t.cuda.is_available() else 'cpu'
+
 
 epochs = opt.epochs
 batch_size = opt.batch_size 
@@ -33,15 +34,15 @@ learning_rate = opt.lr
 swing_rate = opt.swing_rate
 swing_period = opt.swing_period
 threthold = opt.threthold
-IMAGE_PATH = "./Img/"
+IMAGE_PATH = "./Img/Losses"
 result_path = opt.result_path
-annotation_test = opt.annotation_file+".txt"
-annotation_train = opt.annotation_file+"V.txt"
+annotation_test = opt.annotation_file+"_test.txt"
+annotation_train = opt.annotation_file+"_train.txt"
 addtext = ""
 if swing_rate != 1.0:
     addtext = "_sr-{}_sp-{}".format(int(swing_rate*10), swing_period)
-    
-corename = opt.save_name+"_"+opt.annotation_file.split("/")[-1]+"_lr-"+str(str(int(learning_rate**(-1))).count("0"))+addtext
+
+corename = opt.save_name+"_"+opt.annotation_file.split("/")[-1]+"_bc-"+str(batch_size)+"_lr-"+str(str(int(learning_rate**(-1))).count("0"))+addtext
 texts = "{}epoch, {}batch, {}num_works, lr={}, threthold={}"
 print(corename)
 print(texts.format(epochs, batch_size, works, learning_rate, threthold))
@@ -58,7 +59,9 @@ transform_test = transforms.Compose(
      transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)), # imagenet
     ])
 
-data_dir = "./Resque/Labeled/NoLabeled/"
+
+#data_dir = "./Resque/Labeled/NoLabeled/"
+data_dir = opt.jpg_path
 #annotation_file ="./Resque/Labeled/NoLabeled/annotation.txt"
 #annotation_file ="./Tmptest/annotation.txt"
 classes = {'bark':0,'cling':1,'command':2,'eat-drink':3,'look_at_handler':4,'run':5,'see_victim':6,'shake':7,'sniff':8,'stop':9,'walk-trot':10}
@@ -156,8 +159,6 @@ def test(test_loader):
     relevant = [0]*classes_num # Count ground trues for calculate the Recall
     selected = [0]*classes_num # Count selected elements for calculate the Precision
     true_positives = [0]*classes_num  # Count true positive relevant for the Recall and Precision
-    #recall = 0
-    #total = 0
     with t.no_grad():
         for batch_idx, (images, labels) in enumerate(test_loader):
             #images = images.transpose(1, 3) # (1,224,224,3) --> (1,3,224,224)
@@ -182,34 +183,11 @@ def test(test_loader):
     ##
     precision = true_positives/relevant
     recall = true_positives/selected
+    micro_precision = np.sum(true_positives)/np.sum(relevant)
+    micro_recall = np.sum(true_positives)/np.sum(selected)
     val_loss = running_loss / len(test_loader)
     
-    return val_loss, precision, recall
-
-
-def exe(test_loader):
-    model.eval()
-    predicts = {}
-    with t.no_grad():
-        for batch_idx, (images, labels) in enumerate(test_loader):
-            images = images.to(device)
-            labels = labels.to(device)
-            
-            outputs = model(images)
-            predicted = outputs.max(1, keepdim=True)[1]
-
-            for i in range(labels.shape[0]):
-                label = labels[i].data.cpu().item()
-                try:    
-                    predicts[label].append(predicted[i].data.cpu().item())
-                except:
-                    predicts[label] = []
-                    predicts[label].append(predicted[i].data.cpu().item())
-            print(predicts[label])
-
-    return predicts
-
-
+    return val_loss, micro_precision, micro_recall, precision, recall
 
 
 loss_list = []
@@ -218,9 +196,9 @@ precision_list = []
 recall_list = []
 for epoch in range(epochs):
     loss = train(train_loader, learning_rate)
-    val_loss, precision, recall = test(test_loader)
+    val_loss, micro_precision, micro_recall, precision, recall = test(test_loader)
 
-    print('epoch %d, loss: %.4f, val_loss: %.4f, precision: %s, recall: %s' % (epoch, loss, val_loss, list(precision), list(recall)))
+    print('epoch %d, loss: %.4f, val_loss: %.4f, micro_precision: %.4f, micro_recall: %.4f, precision: %s, recall: %s' % (epoch, loss, val_loss, micro_precision, micro_recall, list(precision), list(recall)))
 
     if epochs%(swing_period+1) == swing_period:
         learning_rate = learning_rate = swing_rate
@@ -228,11 +206,36 @@ for epoch in range(epochs):
     # logging
     loss_list.append(loss)
     val_loss_list.append(val_loss)
-    precision_list.append(precision)
-    recall_list.append(recall)
+    precision_list.append(micro_precision)
+    recall_list.append(micro_recall)
+
+    plt.figure()
+    x = []
+    for i in range(0, len(loss_list)):
+        x.append(i)
+    x = np.array(x)
+    plt.plot(x, np.array(loss_list), label="train")
+    plt.plot(x, np.array(val_loss_list), label="test")
+    #plt.plot(x, np.array(val_acc_list), label="acc")
+    plt.legend() # 凡例
+    plt.xlabel("epoch")
+    plt.ylabel("score")
+    #plt.savefig('./Img/figurefinetuneopt.png')
+    #print("save to ./Img/figurefinetuneopt.png")
+    plt.savefig(os.path.join(IMAGE_PATH,corename+'.png'))
+
+    plt.figure()
+    plt.plot(x, np.array(precision_list), label="precision")
+    plt.plot(x, np.array(recall_list), label="recall", linestyle="dashed")
+    plt.legend() # 凡例
+    plt.xlabel("epoch")
+    plt.ylabel("accuracy")
+    plt.savefig(os.path.join(IMAGE_PATH,corename+'_accuracy.png'))
+
 
     
 print('Finished Training')
+plt.figure()
 x = []
 for i in range(0, len(loss_list)):
     x.append(i)
@@ -255,68 +258,6 @@ print("save to "+os.path.join(result_path+corename+'.ckpt'))
 
 exit()
 
-
-dataiter = iter(test_loader)
-images, labels = dataiter.next()
-
-def denorm(x):
-    out = (x + 1) / 2
-    return out.clamp(0, 1)
-
-#torchvision.utils.save_image(self.denorm(A.data.cpu()), '{}/real_{}.png'.format(IMAGE_PATH, j+1))
-save_file = os.path.join(IMAGE_PATH, corename+"_denorm.jpg")
-torchvision.utils.save_image(denorm(images.data.cpu()), save_file)
-
-print("save to ", save_file)
-
-
-
-def draw_heatmap(data, row_labels, column_labels):
-    # 描画する
-    fig, ax = plt.subplots()
-    #heatmap = ax.pcolor(data, cmap=plt.cm.Blues)
-    heatmap = ax.pcolor(data, cmap=plt.cm.Reds)
-
-    ax.set_xticks(np.arange(data.shape[0]) + 0.5, minor=False)
-    ax.set_yticks(np.arange(data.shape[1]) + 0.5, minor=False)
-
-    ax.invert_yaxis()
-    ax.xaxis.tick_top()
-
-    ax.set_xticklabels(row_labels, minor=False)
-    ax.set_yticklabels(column_labels, minor=False)
-    #plt.show()
-    plt.savefig(IMAGE_PATH+corename+'_heatmap.png')
-
-    return heatmap
-
-
-## Make heatmap image.
-acc = exe(test_loader)
-#print(acc)
-arra = [0]*(classes_num) #]*(classes_num)
-for i in acc:
-    arra[i] = [0]*(classes_num)
-    for j in acc[i]:
-        arra[i][j]+=1
-
-        
-#arra = np.array(arra)
-print(np.array(arra))
-## Softmax
-for i in range(len(arra)):
-
-    total = sum(arra[i])
-    for j in range(len(arra[i])):
-        arra[i][j] = arra[i][j]/total
-#print(arra)
-
-arra = np.array(arra)
-#print(acc)
-print(arra)
-
-
-
 classes = ['bark','cling','comand','eat','handlr','run','victim','shake','sniff','stop','walk']
-draw_heatmap(arra, classes, classes)
+#draw_heatmap(arra, classes, classes)
 
