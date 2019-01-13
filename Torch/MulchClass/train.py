@@ -42,10 +42,12 @@ addtext = ""
 if swing_rate != 1.0:
     addtext = "_sr-{}_sp-{}".format(int(swing_rate*10), swing_period)
 
-corename = opt.save_name+"_"+opt.annotation_file.split("/")[-1]+"_bc-"+str(batch_size)+"_lr-"+str(str(int(learning_rate**(-1))).count("0"))+addtext
+#corename = opt.save_name+"_"+opt.annotation_file.split("/")[-1]+"_bc-"+str(batch_size)+"_lr-"+str(str(int(learning_rate**(-1))).count("0"))+addtext
+corename = opt.annotation_file.split("/")[-1]+"_"+opt.save_name+"_bc-"+str(batch_size)+"_lr-"+str(str(int(learning_rate**(-1))).count("0"))+addtext
+
 texts = "{}epoch, {}batch, {}num_works, lr={}, threthold={}"
 print(corename)
-print(texts.format(epochs, batch_size, works, learning_rate, threthold))
+print(texts.format(epochs, batch_size, works, learning_rate, threthold),  opt.annotation_file)
 transform_train = transforms.Compose(
     [transforms.Resize(224),
      transforms.Pad(16),

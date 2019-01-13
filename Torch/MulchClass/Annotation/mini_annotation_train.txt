@@ -1,22 +1,3 @@
-20150801 20150801_000001.jpg command run walk-trot
-20150801 20150801_000002.jpg command run walk-trot
-20150801 20150801_000003.jpg command run walk-trot
-20150801 20150801_000004.jpg command run walk-trot
-20150801 20150801_000005.jpg command run walk-trot
-20150801 20150801_000006.jpg command run walk-trot
-20150801 20150801_000007.jpg command run walk-trot
-20150801 20150801_000008.jpg command run walk-trot
-20150801 20150801_000009.jpg command run walk-trot
-20150801 20150801_000010.jpg command run walk-trot
-20150801 20150801_000011.jpg command run walk-trot
-20150801 20150801_000012.jpg command run walk-trot
-20150801 20150801_000013.jpg command run walk-trot
-20150801 20150801_000014.jpg command run walk-trot
-20150801 20150801_000015.jpg command run walk-trot
-20150801 20150801_000016.jpg command run walk-trot
-20150801 20150801_000017.jpg run walk-trot
-20150801 20150801_000018.jpg run walk-trot
-20150801 20150801_000019.jpg run walk-trot
 20150801 20150801_000020.jpg run walk-trot
 20150801 20150801_000021.jpg run walk-trot
 20150801 20150801_000022.jpg run walk-trot

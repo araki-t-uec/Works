@@ -42,7 +42,7 @@ addtext = ""
 if swing_rate != 1.0:
     addtext = "_sr-{}_sp-{}".format(int(swing_rate*10), swing_period)
 
-corename = opt.save_name+"_"+opt.annotation_file.split("/")[-1]+"_bc-"+str(batch_size)+"_lr-"+str(str(int(learning_rate**(-1))).count("0"))+addtext
+corename = opt.annotation_file.split("/")[-1]+"_"+opt.save_name+"_bc-"+str(batch_size)+"_lr-"+str(str(int(learning_rate**(-1))).count("0"))+addtext
 texts = "{}epoch, {}batch, {}num_works, lr={}, threthold={}"
 print(corename)
 print(texts.format(epochs, batch_size, works, learning_rate, threthold), data_dir)
@@ -77,6 +77,10 @@ classes = {'bark':0,'cling':1,'command':2,'eat-drink':3,'look_at_handler':4,'run
 ## Model
 classes_num = 11
 model = networks.ArakiSoundNet()
+if opt.sound_dim == 1:
+    model = networks.ArakiSoundNet()
+    corename = corename+"_1d"
+    print(corename)
 #print(model)
 if opt.mulch_gpu == "True":
     print("Let's use", torch.cuda.device_count(), "GPUs!")

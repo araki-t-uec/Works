@@ -15,7 +15,7 @@ import torchvision.models as models
 import sys, os
 import numpy as np
 import dataload
-#import networks
+import networks
 from opts import parse_opts
 
 
@@ -46,6 +46,7 @@ if swing_rate != 1.0:
 
 #corename = opt.save_name+"_"+opt.annotation_file.split("/")[-1]+"_bc-"+str(batch_size)+"_lr-"+str(str(int(learning_rate**(-1))).count("0"))
 corename = opt.annotation_file.split("/")[-1]+"_"+opt.save_name+"_bc-"+str(batch_size)+"_lr-"+str(str(int(learning_rate**(-1))).count("0"))+addtext
+
 texts = "{}epoch, {}batch, {}num_works, lr={}, threthold={}"
 
 ## Loss weights
@@ -53,7 +54,7 @@ w_still = 1
 w_optic = 1
 
 print(corename)
-print(texts.format(epochs, batch_size, works, learning_rate, threthold), opt.annotation_file)
+print(texts.format(epochs, batch_size, works, learning_rate, threthold))
 
 transform_train = transforms.Compose(
     [transforms.Resize(224),
@@ -76,30 +77,22 @@ classes = {'bark':0,'cling':1,'command':2,'eat-drink':3,'look_at_handler':4,'run
 
 ## Model
 classes_num = 11
-model = models.vgg16(pretrained=True)
-model.classifier[6] = nn.Linear(4096, classes_num)
-opt_model = models.vgg16(pretrained=True)
-opt_model.classifier[6] = nn.Linear(4096, classes_num)
+model = networks.TwostreamNet()
 #print(model)
 #print(model.classifier[6])
 if opt.mulch_gpu == "True":
     print("Let's use", torch.cuda.device_count(), "GPUs!")
     model = nn.DataParallel(model) # make parallel
-    opt_model = nn.DataParallel(opt_model) # make parallel
     #cudnn.benchmark = True
 model = model.to(device)
-opt_model = opt_model.to(device)
 
 
 ## Load dataset.
 #train_dataset = dataload.MulchVideoset(annotation_train, data_dir, classes, transform_train)
-train_dataset = dataload.Stlandopt(annotation_train, still_dir, optic_dir, classes, transform_train)
-test_dataset = dataload.Stlandopt(annotation_test, still_dir, optic_dir, classes, transform_test)
+train_dataset= dataload.Twostream(annotation_train,still_dir, optic_dir, classes, transform_train)
+test_dataset = dataload.Twostream(annotation_test, still_dir, optic_dir, classes, transform_test)
 
-#train_size = int(0.8 * len(dataset))
-#test_size = len(dataset)-train_size  
-#train, test = torch.utils.data.random_split(dataset, [train_size, test_size])
-train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=works)
+train_loader= DataLoader(train_dataset,batch_size=batch_size, shuffle=True, num_workers=works)
 test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True, num_workers=works)
 
 
@@ -118,52 +111,34 @@ def display(train_loader, namae):
         inp = std * inp + mean
         inp = np.clip(inp, 0, 1)
         
-        # if title is not None:
-        #     plt.title(title)
-        # plt.pause(0.001)  # pause a bit so that plots are updated
         plt.imsave(namae+'.jpg', inp)
     # Get a batch of training data
     inputs, labels = next(iter(train_loader))
     # Make a grid from batch
+    inputs = torch.cat((inputs[0], inputs[1]),0)
     out = torchvision.utils.make_grid(inputs)
     imshow(out)
 
-# display(train_loader, opt.annotation_file.split("/")[-1])
-# display(train_loader, corename)
+display(train_loader, corename)
 
 def nofk(output, gt_labels, threthold=0.5):
     return(np.where(output < threthold, 0, 1))
 
 def train(train_loader, learning_rate):
     model.train()
-    opt_model.train()
     running_loss = 0
     for batch_idx, (images, labels) in enumerate(train_loader):
-        nagasa = len(images)
-        still_images = images[0]
-        optic_images = images[1:]
-        
-        images = still_images.to(device)
+        ## images = [(tensor), (tensor)] --> ((tensor), (tensor))
+        images_x = images[0].to(device)
+        images_y = images[1].to(device)
         labels = labels.to(device)
 
         # zero the parameter gradients
         optimizer.zero_grad()
         # forward + backward + optimize
-        
-        outputs = model(images)
-        loss_still = 1*F.multilabel_soft_margin_loss(outputs, labels.cuda(non_blocking=True).float())
-        for opt_image in optic_images:
-            opt = opt_image.to(device)
-            optputs = opt_model(opt)
-            opt = opt.cpu() ## release to memory
-            outputs = torch.add(outputs, optputs)
-        outputs = outputs/nagasa
-        #loss = criterion(outputs, labels)
-        loss_mulch = 1*F.multilabel_soft_margin_loss(outputs, labels.cuda(non_blocking=True).float())
-        loss_optic = 1*F.multilabel_soft_margin_loss(optputs, labels.cuda(non_blocking=True).float())
-
-        loss = loss_mulch + w_still*loss_still + w_optic*loss_optic
-
+        outputs = model(images_x, images_y)
+        loss = 1*F.multilabel_soft_margin_loss(outputs, labels.cuda(non_blocking=True).float())
+                
         loss.backward()
         optimizer.step()
         running_loss += loss.item()
@@ -177,35 +152,18 @@ def train(train_loader, learning_rate):
 
 def test(test_loader):
     model.eval()
-    opt_model.eval()
-
     running_loss = 0
     relevant = [0]*classes_num # Count ground trues for calculate the Recall
     selected = [0]*classes_num # Count selected elements for calculate the Precision
     true_positives = [0]*classes_num  # Count true positive relevant for the Recall and Precision
     with torch.no_grad():
         for batch_idx, (images, labels) in enumerate(test_loader):
-            nagasa = len(images)
-            still_images = images[0]
-            optic_images = images[1:]
-
-            images = still_images.to(device)
+            images_x = images[0].to(device)
+            images_y = images[1].to(device)
             labels = labels.to(device)
-            outputs = model(images)
-            loss_still = 1*F.multilabel_soft_margin_loss(outputs, labels.cuda(non_blocking=True).float())
-
-            for opt_image in optic_images:
-                opt = opt_image.to(device)
-                optputs = model(opt)
-                opt = opt.cpu() ## release to memory
-                outputs = torch.add(outputs, optputs)
-            outputs = outputs/nagasa
-                
+            outputs = model(images_x, images_y)
+            loss = 1*F.multilabel_soft_margin_loss(outputs, labels.cuda(non_blocking=True).float())
             #loss = criterion(outputs, labels)
-            loss_mulch = 1*F.multilabel_soft_margin_loss(outputs, labels.cuda(non_blocking=True).float())
-            loss_optic = 1*F.multilabel_soft_margin_loss(optputs, labels.cuda(non_blocking=True).float())
-
-            loss = loss_mulch + w_still*loss_still + w_optic*loss_optic
 
             running_loss += loss.item()
 
@@ -292,8 +250,6 @@ print("save to "+corename+".png")
 ### Save a model.
 torch.save(model.state_dict(), os.path.join(result_path+corename+'_still.ckpt'))
 print("save to "+os.path.join(result_path+corename+'_still.ckpt'))
-torch.save(opt_model.state_dict(), os.path.join(result_path+corename+'_optic.ckpt'))
-print("save to "+os.path.join(result_path+corename+'_optic.ckpt'))
 
 
 exit()

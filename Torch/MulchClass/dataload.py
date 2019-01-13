@@ -242,7 +242,7 @@ class DogSounds(torch.utils.data.Dataset):
         self.sound_dir = sound_dir
         f = open(annotation_file)
         for aline in f:
-            match = re.search(r'\d+ \d+_\d+.wav .*', aline)
+            match = re.search(r'\d+ \d+_\d+.jpg .*', aline)
             video = match.group(0).split(" ")[0]
             frame = match.group(0).split(" ")[1]
             ml_class =  match.group(0).split(" ")[2:]
@@ -263,10 +263,10 @@ class DogSounds(torch.utils.data.Dataset):
     def __getitem__(self, idx):
         #dataframeから画像へのパスとラベルを読み出す
         audio_name = self.image_dataframe[idx][0] ## 20150801
-        frame_name = self.image_dataframe[idx][1] ## 20150801_000016.wav
+        frame_name = self.image_dataframe[idx][1] ## 20150801_000016.jpg
         label = self.image_dataframe[idx][2]
-        wav_path = os.path.join(self.sound_dir, audio_name, frame_name) ## Sound/2015/0016.wav
-        
+        wav_path = os.path.join(self.sound_dir, audio_name, frame_name) ## Sound/2015/0016.jpg 
+        wav_path = wav_path.replace('jpg', 'wav') ## Sound/2015/0016.jpg --> Sound/2015/0016.wav
         ## wav-file の読み込み
         x, fs = librosa.load(wav_path, sr=48000)
         mfccs = librosa.feature.mfcc(x, sr=fs) ##  (20, 92)
@@ -274,3 +274,49 @@ class DogSounds(torch.utils.data.Dataset):
         return sound, np.array(label)
 
     
+class Twostream(torch.utils.data.Dataset):
+    def __init__(self, annotation_file, still_dir, optic_dir, classes, transform=None):
+        self.image_dataframe = []
+        self.transform = transform
+        self.still_dir = still_dir
+        self.optic_dir = optic_dir
+
+        f = open(annotation_file)
+        for aline in f:
+            match = re.search(r'\d+ \d+_\d+.jpg .*', aline)
+            video = match.group(0).split(" ")[0]
+            frame = match.group(0).split(" ")[1]
+            ml_class =  match.group(0).split(" ")[2:]
+            label = [0]*len(classes)
+            for aclass in ml_class:
+                try:
+                    label[classes[aclass]] = 1
+                except:
+                    pass
+            ##
+            #print(os.path.join(sound_dir, video, frame), label)
+            self.image_dataframe.append([video, frame, label])
+
+            
+    def __len__(self):
+        return len(self.image_dataframe)
+
+    def __getitem__(self, idx):
+        #dataframeから画像へのパスとラベルを読み出す
+        video_name = self.image_dataframe[idx][0] ## 20150801
+        frame_name = self.image_dataframe[idx][1] ## 20150801_000016.jpg
+        label = self.image_dataframe[idx][2]
+        opt_path = os.path.join(self.still_dir, video_name, frame_name) ## still/2015/0016.jpg 
+        stl_path = os.path.join(self.optic_dir, video_name, frame_name) ## optic/2015/0016.jpg 
+
+        ## image の読み込み
+        images = []
+        opt = Image.open(opt_path)
+        stl = Image.open(stl_path)
+        if self.transform:
+            opt = self.transform(opt)
+            stl = self.transform(stl)
+        images.append(stl)
+        images.append(opt)
+
+        return images, np.array(label)

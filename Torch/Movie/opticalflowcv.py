@@ -18,7 +18,7 @@ filelist = []
 #     for i in paths:
 #         for j in os.listdir(os.path.join(video_dir, i)):
 #             filelist.append(os.path.join(video_dir, i, j))
-filelist = ["../data/Dogs/Resque/20150801.mp4", "../data/Dogs/Resque/20160710.mp4", "../data/Dogs/Resque/20161111.mp4"]
+filelist = ["../data/Dogs/Resque/20150801.mp4", "../data/Dogs/Resque/20160710.mp4", "../data/Dogs/Resque/20161111.mp4", "../data/Dogs/Resque/2016112701.mp4", "../data/Dogs/Resque/2016112702.mp4", "../data/Dogs/Resque/2017061901.mp4", "../data/Dogs/Resque/2017061902.mp4"]
 print(filelist)
 
 ## filelist ---> [ '../data/eat-drink/361.mp4', '../data/bark/ts340.mp4',...]
@@ -56,19 +56,19 @@ for filename in filelist:
     
         frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         # calculate optical flow
-#       try:
-        flow = cv2.calcOpticalFlowFarneback(old_gray ,frame_gray, None, 0.5, 3, 10, 3, 5, 1.2, 0)
-        mag, ang = cv2.cartToPolar(flow[...,0], flow[...,1])
-        hsv[...,0] = ang*180/np.pi/2
-        hsv[...,2] = cv2.normalize(mag,None,0,255,cv2.NORM_MINMAX)
-        rgb = cv2.cvtColor(hsv,cv2.COLOR_HSV2BGR)
+        try:
+            flow = cv2.calcOpticalFlowFarneback(old_gray ,frame_gray, None, 0.5, 3, 10, 3, 5, 1.2, 0)
+            mag, ang = cv2.cartToPolar(flow[...,0], flow[...,1])
+            hsv[...,0] = ang*180/np.pi/2
+            hsv[...,2] = cv2.normalize(mag,None,0,255,cv2.NORM_MINMAX)
+            rgb = cv2.cvtColor(hsv,cv2.COLOR_HSV2BGR)
             
             #p1, st, err = cv2.calcOpticalFlowPyrLK(old_gray, frame_gray, p0, None, **lk_params)
-#        except:
-#            print("Error : cv2.calcOpricalFlowPyrLK: skip this file")
-#            ercmd = 'echo "ERROR FILE: '+filename+'" >> cantOpticalMp4list'
-#            os.system(ercmd)
-#            break
+        except:
+            print("Error : cv2.calcOpricalFlowPyrLK: skip this file")
+            ercmd = 'echo "ERROR FILE: '+filename+'" >> cantOpticalMp4list'
+            os.system(ercmd)
+            break
         #if (int(st[0][0])) == 0:
         #    break
         # Select good points
@@ -81,7 +81,7 @@ for filename in filelist:
         #    mask = cv2.line(mask, (a,b),(c,d), color[i].tolist(), 2)
         #    frame = cv2.circle(frame,(a,b),5,color[i].tolist(),-1)
         #    img = cv2.add(frame,mask)
-            
+           
         #cv2.imshow('frame',img)
         #k = cv2.waitKey(30) & 0xff
         #if k == 27:
@@ -93,8 +93,8 @@ for filename in filelist:
         savename = filename.split("/")[-1].split(".")[0]+"_%06d.jpg"%counter
         savefile = os.path.join(savepath, savename)
         print(savefile)
-        #cmd = 'mkdir -p ' + savepath
-        #os.system(cmd)
+        cmd = 'mkdir -p ' + savepath
+        os.system(cmd)
         
         #cv2.imwrite(savefile, img)
         cv2.imwrite(savefile, rgb)

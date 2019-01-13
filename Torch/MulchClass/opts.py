@@ -11,17 +11,17 @@ def parse_opts():
     parser.add_argument(
         '--annotation_file',
         # default='Resque/Labeled/NoLabeled/annotation.txt',
-        default='Annotation/20150801',
+        default='Annotation/seven80',
         type=str,
-        help='Annotation file path [Annotation/20150810 | Annotation/20160710 | Annotation/20161111]')
+        help='Annotation file path [Annotation/seven70 | Annotation/seven80 | Annotation/mini]')
     parser.add_argument(
         '--result_path',
-        default='./Results/',
+        default='./Models/',
         type=str,
         help='Result directory path')
     parser.add_argument(
         '--lr',
-        default=0.00001,
+        default=0.000001,
         type=float,
         help=
         'Initial learning rate (divided by 10 while training by lr scheduler)')
@@ -40,14 +40,14 @@ def parse_opts():
     parser.add_argument(
         '--gpu', default=0, type=str)
     parser.add_argument(
-        '--batch_size', default=50, type=int, help='Batch Size')
-    parser.add_argument(
         '--epochs',
-        default=60,
+        default=100,
         type=int,
         help='Number of total epochs to run')
     parser.add_argument(
-        '--num_works', default=50, type=int, help='Number of works')
+        '--batch_size', default=32, type=int, help='Batch Size')
+    parser.add_argument(
+        '--num_works', default=32, type=int, help='Number of works')
     parser.add_argument(
         '--threthold', default=0.5, type=float, help='threthold for N-ok-K')
     parser.add_argument(
@@ -58,6 +58,11 @@ def parse_opts():
     parser.add_argument(
         '--mulch_gpu',
         help='If true use mulch GPU.')
+    parser.add_argument(
+        '--sound_dim',
+        default=0,
+        type=int,
+        help='For sound option. give 1, load dimention 1 model')
     parser.set_defaults(mulch_gpu=False)
 
     
