@@ -269,8 +269,47 @@ class DogSounds(torch.utils.data.Dataset):
         wav_path = wav_path.replace('jpg', 'wav') ## Sound/2015/0016.jpg --> Sound/2015/0016.wav
         ## wav-file の読み込み
         x, fs = librosa.load(wav_path, sr=48000)
+        mfccs = librosa.feature.mfcc(x, sr=fs) ##  (20, 94)
+        sound = torch.Tensor(mfccs).unsqueeze(0) ##  (1, 20, 94) 
+        return sound, np.array(label)
+
+    
+class DogSounds1d(torch.utils.data.Dataset):
+    def __init__(self, annotation_file, sound_dir, classes, transform=None):
+        self.image_dataframe = []
+        self.transform = transform
+        self.sound_dir = sound_dir
+        f = open(annotation_file)
+        for aline in f:
+            match = re.search(r'\d+ \d+_\d+.jpg .*', aline)
+            video = match.group(0).split(" ")[0]
+            frame = match.group(0).split(" ")[1]
+            ml_class =  match.group(0).split(" ")[2:]
+            label = [0]*len(classes)
+            for aclass in ml_class:
+                try:
+                    label[classes[aclass]] = 1
+                except:
+                    pass
+            ##
+            #print(os.path.join(sound_dir, video, frame), label)
+            self.image_dataframe.append([video, frame, label])
+
+            
+    def __len__(self):
+        return len(self.image_dataframe)
+
+    def __getitem__(self, idx):
+        #dataframeから画像へのパスとラベルを読み出す
+        audio_name = self.image_dataframe[idx][0] ## 20150801
+        frame_name = self.image_dataframe[idx][1] ## 20150801_000016.jpg
+        label = self.image_dataframe[idx][2]
+        wav_path = os.path.join(self.sound_dir, audio_name, frame_name) ## Sound/2015/0016.jpg 
+        wav_path = wav_path.replace('jpg', 'wav') ## Sound/2015/0016.jpg --> Sound/2015/0016.wav
+        ## wav-file の読み込み
+        x, fs = librosa.load(wav_path, sr=48000)
         mfccs = librosa.feature.mfcc(x, sr=fs) ##  (20, 92)
-        sound = torch.Tensor(mfccs).unsqueeze(0) ##  (1, 20, 92) 
+        sound = torch.Tensor(mfccs)
         return sound, np.array(label)
 
     
@@ -318,5 +357,118 @@ class Twostream(torch.utils.data.Dataset):
             stl = self.transform(stl)
         images.append(stl)
         images.append(opt)
+
+        return images, np.array(label)
+
+
+class SoundBased_Twostream(torch.utils.data.Dataset):
+    ### Load JPG filr and WAV file
+    def __init__(self, annotation_file, image_dir, sound_dir, classes, transform=None):
+        self.image_dataframe = []
+        self.transform = transform
+        self.image_dir = image_dir
+        self.sound_dir = sound_dir
+
+        f = open(annotation_file)
+        for aline in f:
+            match = re.search(r'\d+ \d+_\d+.jpg .*', aline)
+            video = match.group(0).split(" ")[0]
+            frame = match.group(0).split(" ")[1]
+            ml_class =  match.group(0).split(" ")[2:]
+            label = [0]*len(classes)
+            for aclass in ml_class:
+                try:
+                    label[classes[aclass]] = 1
+                except:
+                    pass
+            ##
+            #print(os.path.join(sound_dir, video, frame), label)
+            self.image_dataframe.append([video, frame, label])
+
+            
+    def __len__(self):
+        return len(self.image_dataframe)
+
+    def __getitem__(self, idx):
+        #dataframeから画像へのパスとラベルを読み出す
+        video_name = self.image_dataframe[idx][0] ## 20150801
+        frame_name = self.image_dataframe[idx][1] ## 20150801_000016.jpg
+        label = self.image_dataframe[idx][2]
+        image_path = os.path.join(self.image_dir, video_name, frame_name) ## image/2015/0016.jpg 
+        sound_path = os.path.join(self.sound_dir, video_name, frame_name) ## sound/2015/0016.jpg 
+        sound_path = sound_path.replace('jpg', 'wav') ## Sound/2015/0016.jpg -> Sound/2015/0016.wav
+
+        ## image の読み込み
+        images = []
+        image = Image.open(image_path)
+        ## wav file の読み込み
+        x, fs = librosa.load(sound_path, sr=48000)
+        mfccs = librosa.feature.mfcc(x, sr=fs) ##  (20, 94)
+        sound = torch.Tensor(mfccs).unsqueeze(0) ##  (1, 20, 94) 
+        if self.transform:
+            image = self.transform(image)
+        images.append(image)
+        images.append(sound)
+
+        return images, np.array(label)
+
+
+
+    #############################3
+    ############################3
+    ###########################33
+class SoundBased_Threestream(torch.utils.data.Dataset):
+    ### Load JPG filr and WAV file
+    def __init__(self, annotation_file, still_dir, optic_dir, sound_dir, classes, transform=None):
+        self.image_dataframe = []
+        self.transform = transform
+        self.still_dir = still_dir
+        self.optic_dir = optic_dir
+        self.sound_dir = sound_dir
+
+        f = open(annotation_file)
+        for aline in f:
+            match = re.search(r'\d+ \d+_\d+.jpg .*', aline)
+            video = match.group(0).split(" ")[0]
+            frame = match.group(0).split(" ")[1]
+            ml_class =  match.group(0).split(" ")[2:]
+            label = [0]*len(classes)
+            for aclass in ml_class:
+                try:
+                    label[classes[aclass]] = 1
+                except:
+                    pass
+            ##
+            #print(os.path.join(sound_dir, video, frame), label)
+            self.image_dataframe.append([video, frame, label])
+
+            
+    def __len__(self):
+        return len(self.image_dataframe)
+
+    def __getitem__(self, idx):
+        #dataframeから画像へのパスとラベルを読み出す
+        video_name = self.image_dataframe[idx][0] ## 20150801
+        frame_name = self.image_dataframe[idx][1] ## 20150801_000016.jpg
+        label = self.image_dataframe[idx][2]
+        still_path = os.path.join(self.still_dir, video_name, frame_name) ## still/2015/0016.jpg 
+        optic_path = os.path.join(self.optic_dir, video_name, frame_name) ## optic/2015/0016.jpg 
+        sound_path = os.path.join(self.sound_dir, video_name, frame_name) ## sound/2015/0016.jpg 
+        sound_path = sound_path.replace('jpg', 'wav') ## Sound/2015/0016.jpg -> Sound/2015/0016.wav
+
+        ## image の読み込み
+        images = []
+        still = Image.open(still_path)
+        optic = Image.open(optic_path)
+        ## wav file の読み込み
+        x, fs = librosa.load(sound_path, sr=48000)
+        mfccs = librosa.feature.mfcc(x, sr=fs) ##  (20, 94)
+        sound = torch.Tensor(mfccs).unsqueeze(0) ##  (1, 20, 94) 
+        if self.transform:
+            still = self.transform(still)
+            optic = self.transform(optic)
+        images.append(still)
+        images.append(optic)
+        images.append(sound)
 
         return images, np.array(label)

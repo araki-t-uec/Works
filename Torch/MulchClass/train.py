@@ -46,7 +46,7 @@ if swing_rate != 1.0:
 corename = opt.annotation_file.split("/")[-1]+"_"+opt.save_name+"_bc-"+str(batch_size)+"_lr-"+str(str(int(learning_rate**(-1))).count("0"))+addtext
 
 texts = "{}epoch, {}batch, {}num_works, lr={}, threthold={}"
-print(corename)
+print("Log/"+corename)
 print(texts.format(epochs, batch_size, works, learning_rate, threthold),  opt.annotation_file)
 transform_train = transforms.Compose(
     [transforms.Resize(224),
@@ -196,6 +196,7 @@ loss_list = []
 val_loss_list = []
 precision_list = []
 recall_list = []
+oldloss = 2
 for epoch in range(epochs):
     loss = train(train_loader, learning_rate)
     val_loss, micro_precision, micro_recall, precision, recall = test(test_loader)
@@ -234,6 +235,11 @@ for epoch in range(epochs):
     plt.ylabel("accuracy")
     plt.savefig(os.path.join(IMAGE_PATH,corename+'_accuracy.png'))
 
+    ### Save a model.
+    if val_loss < oldloss:
+        t.save(model.state_dict(), os.path.join(result_path+corename+'.ckpt'))
+        print("save to "+os.path.join(result_path+corename+'.ckpt'))
+        oldloss = val_loss
 
     
 print('Finished Training')
@@ -254,8 +260,8 @@ plt.savefig(os.path.join(IMAGE_PATH,corename+'.png'))
 print("save to "+corename+".png")
 
 ### Save a model.
-t.save(model.state_dict(), os.path.join(result_path+corename+'.ckpt'))
-print("save to "+os.path.join(result_path+corename+'.ckpt'))
+#t.save(model.state_dict(), os.path.join(result_path+corename+'.ckpt'))
+#print("save to "+os.path.join(result_path+corename+'.ckpt'))
 
 
 exit()

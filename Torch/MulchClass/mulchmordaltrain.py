@@ -52,7 +52,7 @@ texts = "{}epoch, {}batch, {}num_works, lr={}, threthold={}"
 w_still = 1
 w_optic = 1
 
-print(corename)
+print("Log/"+corename)
 print(texts.format(epochs, batch_size, works, learning_rate, threthold), opt.annotation_file)
 
 transform_train = transforms.Compose(

@@ -53,7 +53,7 @@ texts = "{}epoch, {}batch, {}num_works, lr={}, threthold={}"
 w_still = 1
 w_optic = 1
 
-print(corename)
+print("Log/"+corename)
 print(texts.format(epochs, batch_size, works, learning_rate, threthold))
 
 transform_train = transforms.Compose(
@@ -189,8 +189,8 @@ loss_list = []
 val_loss_list = []
 precision_list = []
 recall_list = []
-#from tensorboard_logger import configure, log_value
-#configure("Log/runs/run-1234", flush_secs=5)
+oldloss = 2
+
 for epoch in range(epochs):
     loss = train(train_loader, learning_rate)
     val_loss, micro_precision, micro_recall, precision, recall = test(test_loader)
@@ -228,7 +228,12 @@ for epoch in range(epochs):
     plt.xlabel("epoch")
     plt.ylabel("accuracy")
     plt.savefig(os.path.join(IMAGE_PATH,corename+'_accuracy.png'))
-    
+
+    ### Save a model.
+    if val_loss < oldloss:
+        t.save(model.state_dict(), os.path.join(result_path+corename+'.ckpt'))
+        print("save to "+os.path.join(result_path+corename+'.ckpt'))
+        oldloss = val_loss    
     
 print('Finished Training')
 plt.figure()
@@ -248,8 +253,8 @@ plt.savefig(os.path.join(IMAGE_PATH,corename+'.png'))
 print("save to "+corename+".png")
 
 ### Save a model.
-torch.save(model.state_dict(), os.path.join(result_path+corename+'_still.ckpt'))
-print("save to "+os.path.join(result_path+corename+'_still.ckpt'))
+#torch.save(model.state_dict(), os.path.join(result_path+corename+'_still.ckpt'))
+#print("save to "+os.path.join(result_path+corename+'_still.ckpt'))
 
 
 exit()

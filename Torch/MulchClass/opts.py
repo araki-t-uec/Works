@@ -11,7 +11,7 @@ def parse_opts():
     parser.add_argument(
         '--annotation_file',
         # default='Resque/Labeled/NoLabeled/annotation.txt',
-        default='Annotation/seven80',
+        default='Annotation/seven80_6fps',
         type=str,
         help='Annotation file path [Annotation/seven70 | Annotation/seven80 | Annotation/mini]')
     parser.add_argument(
