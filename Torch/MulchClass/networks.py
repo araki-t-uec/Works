@@ -345,7 +345,7 @@ class SoundBased_ThreestreamNet(nn.Module):
     ##        optic_image:(224 x 224 x 3)
     ##          wav_sound:( 20 x  94 x 1)
     def __init__(self):
-        super(SoundBased_TwostreamNet, self).__init__()
+        super(SoundBased_ThreestreamNet, self).__init__()
         self.features_still = nn.Sequential(
             nn.Conv2d(3, 64, 3, padding=1),
             nn.ReLU(inplace=True),
@@ -447,11 +447,11 @@ class SoundBased_ThreestreamNet(nn.Module):
         self.fc = nn.Linear(512*2*11 , 512)
         
     def forward(self, still, optic, sounds):
-        stl = self.features_image(still)
-        opt = self.features_image(optic)
+        stl = self.features_still(still)
+        opt = self.features_optic(optic)
 
         snd = self.features_sound(sounds)
-        snd = snd.view(y.size(0), -1)
+        snd = snd.view(snd.size(0), -1)
         snd = self.fc(snd)
         snd = snd.reshape(len(snd), 1, 1, 512) ## (batch, 512) --> (batch, 1, 1, 512)
         snd = snd.repeat(1,7,7,1)   ## (batch, 1, 1, 512) --> (batch, 7, 7, 512)

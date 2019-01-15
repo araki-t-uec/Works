@@ -17,7 +17,9 @@ class MulchVideoset(torch.utils.data.Dataset):
             match = re.search(r'\d+ \d+_\d+.jpg .*', aline)
             video = match.group(0).split(" ")[0]
             frame = match.group(0).split(" ")[1]
-            ml_class =  match.group(0).split(" ")[2:]
+            # video = aline.split(" ")[0] ##  20150801
+            # frame = aline.split(" ")[1] ##  20150801_000016.jpg
+            ml_class =  aline.split(" ")[2:]
             label = [0]*len(classes)
             for aclass in ml_class:
                 try:

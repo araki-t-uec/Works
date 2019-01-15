@@ -12,6 +12,9 @@ n = 6 # 30 fps / 5 = 6fps
 
 for aline in f:
     text = aline.split()[1].split("_")[-1].split(".")[0]
+    father = aline.split()[0]
+    frame = aline.split()[1]
+    labels = aline.split()[2:]
     if int(text) %n == 0:
-        print(aline.strip())
+        print(father, frame, " ".join(labels))
     

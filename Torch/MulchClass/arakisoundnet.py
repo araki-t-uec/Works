@@ -142,7 +142,7 @@ def train(train_loader, learning_rate):
         # zero the parameter gradients
         optimizer.zero_grad()
         # forward + backward + optimize
-        outputs = msounds)
+        outputs = model(sounds)
         
         #loss = criterion(outputs, labels)
         loss = 1*F.multilabel_soft_margin_loss(outputs, labels.cuda(non_blocking=True).float())
@@ -207,9 +207,9 @@ for epoch in range(epochs):
 
     print('epoch %d, loss: %.4f, val_loss: %.4f, micro_precision: %.4f, micro_recall: %.4f, precision: %s, recall: %s' % (epoch, loss, val_loss, micro_precision, micro_recall, list(precision), list(recall)))
 
-    if epochs%(swing_period+1) == swing_period:
-        learning_rate = learning_rate = swing_rate
-        print("chenge learning_rate! to ", learning_rate)
+    # if epochs%(swing_period+1) == swing_period:
+    #     learning_rate = learning_rate = swing_rate
+    #     print("chenge learning_rate! to ", learning_rate)
     # logging
     loss_list.append(loss)
     val_loss_list.append(val_loss)
@@ -241,7 +241,7 @@ for epoch in range(epochs):
 
     ### Save a model.
     if val_loss < oldloss:
-        t.save(model.state_dict(), os.path.join(result_path+corename+'.ckpt'))
+        torch.save(model.state_dict(), os.path.join(result_path+corename+'.ckpt'))
         print("save to "+os.path.join(result_path+corename+'.ckpt'))
         oldloss = val_loss
     

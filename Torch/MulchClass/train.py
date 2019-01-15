@@ -84,8 +84,8 @@ model = model.to(device)
 
 ## Load dataset.
 #train_dataset = dataload.MulchVideoset(annotation_train, data_dir, classes, transform_train)
-train_dataset = dataload.Oneovern(annotation_train, data_dir, classes, transform_train)
-test_dataset = dataload.MulchVideoset(annotation_test, data_dir, classes, transform_test)
+train_dataset = dataload.MulchVideoset(annotation_train, data_dir, classes, transform_train)
+test_dataset  = dataload.MulchVideoset(annotation_test,  data_dir, classes, transform_test)
 
 #train_size = int(0.8 * len(dataset))
 #test_size = len(dataset)-train_size  
@@ -203,9 +203,9 @@ for epoch in range(epochs):
 
     print('epoch %d, loss: %.4f, val_loss: %.4f, micro_precision: %.4f, micro_recall: %.4f, precision: %s, recall: %s' % (epoch, loss, val_loss, micro_precision, micro_recall, list(precision), list(recall)))
 
-    if epochs%(swing_period+1) == swing_period:
-        learning_rate = learning_rate = swing_rate
-        print("chenge learning_rate! to ", learning_rate)
+#    if epochs%(swing_period+1) == swing_period:
+#        learning_rate = learning_rate * swing_rate
+#        print("chenge learning_rate! to ", learning_rate)
     # logging
     loss_list.append(loss)
     val_loss_list.append(val_loss)

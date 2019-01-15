@@ -230,7 +230,7 @@ for epoch in range(epochs):
 
     ### Save a model.
     if val_loss < oldloss:
-        t.save(model.state_dict(), os.path.join(result_path+corename+'.ckpt'))
+        torch.save(model.state_dict(), os.path.join(result_path+corename+'.ckpt'))
         print("save to "+os.path.join(result_path+corename+'.ckpt'))
         oldloss = val_loss
     
