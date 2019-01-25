@@ -33,7 +33,7 @@ def parse_opts():
         'learning rate * down_rate. default=1.0 (no swing)')
     parser.add_argument(
         '--swing_period',
-        default=100,
+        default=1000,
         type=int,
         help=
         'piriod of down learning_rate. default=100')
@@ -59,10 +59,21 @@ def parse_opts():
         '--mulch_gpu',
         help='If true use mulch GPU.')
     parser.add_argument(
+        '--optim',
+        default="adam",
+        type=str,
+        help='[ adam | sgd ]')
+    parser.add_argument(
         '--sound_dim',
         default=0,
         type=int,
         help='For sound option. give 1, load dimention 1 model')
+    parser.set_defaults(mulch_gpu=False)
+    parser.add_argument(
+        '--oldloss',
+        default=2,
+        type=int,
+        help='The first loss score. If test_loss less than oldloss, save model parameta.')
     parser.set_defaults(mulch_gpu=False)
 
     

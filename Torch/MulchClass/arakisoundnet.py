@@ -38,11 +38,20 @@ IMAGE_PATH = "./Img/Losses"
 result_path = opt.result_path
 annotation_test = opt.annotation_file+"_test.txt"
 annotation_train = opt.annotation_file+"_train.txt"
+optim = opt.optim
 addtext = ""
 if swing_rate != 1.0:
-    addtext = "_sr-{}_sp-{}".format(int(swing_rate*10), swing_period)
-
+    addtext = "_sr-{}_sp-{}".format(int(swing_rate*10), swing_period)    
 corename = opt.annotation_file.split("/")[-1]+"_"+opt.save_name+"_bc-"+str(batch_size)+"_lr-"+str(str(int(learning_rate**(-1))).count("0"))+addtext
+
+
+
+
+
+if optim == "sgd":
+    corename = optim + "_" + corename
+
+
 texts = "{}epoch, {}batch, {}num_works, lr={}, threthold={}"
 print("Log/"+corename)
 print(texts.format(epochs, batch_size, works, learning_rate, threthold), data_dir)
@@ -53,25 +62,25 @@ classes = {'bark':0,'cling':1,'command':2,'eat-drink':3,'look_at_handler':4,'run
 
 
 
-
-
-# #### Test call mfcc
-# import librosa
-# wav_file = "./Resque/Sounds/1sec30f/20150801/20150801_000200.wav"
-# #x, fs = librosa.load(wav_file, sr=44100)
-# x, fs = librosa.load(wav_file, sr=48000)
-# mfccs = librosa.feature.mfcc(x, sr=fs)
-# print(x, fs)
-# print(mfccs)
-# print(mfccs.shape)
-# mfccs = torch.Tensor(mfccs)
-# mfccs = mfccs.unsqueeze(0)    ## [20, 87] -> [1,20,87]
-# mfccs = torch.cat((mfccs, mfccs)) # 2 batchs
-# print(mfccs.shape)
-# ####
-# exit()
-
-
+        
+def display(train_loader, namae):
+    def imshow(inp, title=None):
+        """Imshow for Tensor."""
+        inp = inp.numpy().transpose((1, 2, 0))
+#        mean = np.array([0.4914, 0.4822, 0.4465])
+#        std = np.array([0.2023, 0.1994, 0.2010])
+#        inp = std * inp + mean
+        inp = np.clip(inp, 0, 1)
+        
+        # if title is not None:
+        #     plt.title(title)
+        # plt.pause(0.001)  # pause a bit so that plots are updated
+        plt.imsave(namae+'.jpg', inp)
+    # Get a batch of training data
+    inputs, labels = next(iter(train_loader))
+    # Make a grid from batch
+    out = torchvision.utils.make_grid(inputs)
+    imshow(out)
 
 
 ## Model
@@ -96,31 +105,13 @@ if opt.mulch_gpu == "True":
     #cudnn.benchmark = True
 model = model.to(device)
 
-
-
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=works)
 test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True, num_workers=works)
 
-def display(train_loader, namae):
-    def imshow(inp, title=None):
-        """Imshow for Tensor."""
-        inp = inp.numpy().transpose((1, 2, 0))
-        mean = np.array([0.4914, 0.4822, 0.4465])
-        std = np.array([0.2023, 0.1994, 0.2010])
-        inp = std * inp + mean
-        inp = np.clip(inp, 0, 1)
-        
-        # if title is not None:
-        #     plt.title(title)
-        # plt.pause(0.001)  # pause a bit so that plots are updated
-        plt.imsave(namae+'.jpg', inp)
-    # Get a batch of training data
-    inputs, labels = next(iter(train_loader))
-    # Make a grid from batch
-    out = torchvision.utils.make_grid(inputs)
-    imshow(out)
+if opt.sound_dim != 1:
+    display(train_loader, corename)
 
-#display(train_loader, corename)
+
 
 def nofk(output, gt_labels, threthold=0.5):
     return(np.where(output < threthold, 0, 1))
@@ -128,10 +119,6 @@ def nofk(output, gt_labels, threthold=0.5):
 def train(train_loader, learning_rate):
     model.train()
     running_loss = 0
-    
-
-    criterion = nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
     
 
     for batch_idx, (sounds, labels) in enumerate(train_loader):
@@ -163,7 +150,7 @@ def test(test_loader):
     running_loss = 0
     relevant = [0]*classes_num # Count ground trues for calculate the Recall
     selected = [0]*classes_num # Count selected elements for calculate the Precision
-    true_positives = [0]*classes_num  # Count true positive relevant for the Recall and Precision
+    true_positive = [0]*classes_num  # Count true positive relevant for the Recall and Precision
     with torch.no_grad():
         for batch_idx, (images, labels) in enumerate(test_loader):
             #images = images.transpose(1, 3) # (1,224,224,3) --> (1,3,224,224)
@@ -184,59 +171,70 @@ def test(test_loader):
             #true_positives.extend((labels * predicted).tolist())
             relevant += np.sum(labels, axis=0)
             selected += np.sum(predicted, axis=0)
-            true_positives += np.sum((labels * predicted), axis=0)
+            true_positive += np.sum((labels * predicted), axis=0)
     ##
-    precision = true_positives/relevant
-    recall = true_positives/selected
-    micro_precision = np.sum(true_positives)/np.sum(relevant)
-    micro_recall = np.sum(true_positives)/np.sum(selected)
     val_loss = running_loss / len(test_loader)
     
-    return val_loss, micro_precision, micro_recall, precision, recall
-
+    return val_loss, true_positive, relevant, selected
 
 loss_list = []
 val_loss_list = []
 precision_list = []
 recall_list = []
 oldloss = 2
+#criterion = nn.CrossEntropyLoss()
+if optim == "sgd":
+    print("optimizer = SGD momentum")
+    optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, momentum=0.9)    
+else:
+    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+
+scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=swing_period, gamma=swing_rate)
 
 for epoch in range(epochs):
+    scheduler.step()
     loss = train(train_loader, learning_rate)
-    val_loss, micro_precision, micro_recall, precision, recall = test(test_loader)
+    val_loss, true_positive, relevant, selected = test(test_loader)
+    #precision = true_positive/relevant
+    #recall = true_positive/selected
+    micro_precision = np.sum(true_positive)/np.sum(relevant)
+    micro_recall = np.sum(true_positive)/np.sum(selected)
 
-    print('epoch %d, loss: %.4f, val_loss: %.4f, micro_precision: %.4f, micro_recall: %.4f, precision: %s, recall: %s' % (epoch, loss, val_loss, micro_precision, micro_recall, list(precision), list(recall)))
+    #print('epoch %d, loss: %.4f, val_loss: %.4f, micro_precision: %.4f, micro_recall: %.4f, precision: %s, recall: %s' % (epoch, loss, val_loss, micro_precision, micro_recall, list(precision), list(recall)))
+    print('epoch %d, loss: %.4f, val_loss: %.4f, micro_precision: %.4f, micro_recall: %.4f, true_positive: %s, relevant: %s, selected: %s' % (epoch, loss, val_loss, micro_precision, micro_recall, list(true_positive), list(relevant), list(selected)))
 
-    # if epochs%(swing_period+1) == swing_period:
-    #     learning_rate = learning_rate = swing_rate
-    #     print("chenge learning_rate! to ", learning_rate)
-    # logging
+    if epochs%(swing_period+1) == swing_period:
+        learning_rate = learning_rate * swing_rate
+        print("chenge learning_rate! to ", learning_rate)
+        
+    ## logging
     loss_list.append(loss)
     val_loss_list.append(val_loss)
     precision_list.append(micro_precision)
     recall_list.append(micro_recall)
 
     plt.figure()
+    fig, ax = plt.subplots(1, 2,figsize=(8,4)) #, sharey=True)
+
     x = []
     for i in range(0, len(loss_list)):
         x.append(i)
     x = np.array(x)
-    plt.plot(x, np.array(loss_list), label="train")
-    plt.plot(x, np.array(val_loss_list), label="test")
+    ax[0].plot(x, np.array(loss_list), label="train")
+    ax[0].plot(x, np.array(val_loss_list), label="test")
     #plt.plot(x, np.array(val_acc_list), label="acc")
-    plt.legend() # 凡例
+    ax[0].legend() # 凡例
     plt.xlabel("epoch")
-    plt.ylabel("score")
-    #plt.savefig('./Img/figurefinetuneopt.png')
-    #print("save to ./Img/figurefinetuneopt.png")
-    plt.savefig(os.path.join(IMAGE_PATH,corename+'.png'))
+    #plt.ylabel("score")
+    ax[0].set_title("loss")
+    ax[1].set_title("micro accuracy")
+    #plt.savefig(os.path.join(IMAGE_PATH,corename+'.png'))
 
-    plt.figure()
-    plt.plot(x, np.array(precision_list), label="precision", color="green")
-    plt.plot(x, np.array(recall_list), label="recall", linestyle="dashed", color="purple")
-    plt.legend() # 凡例
-    plt.xlabel("epoch")
-    plt.ylabel("accuracy")
+    ax[1].plot(x, np.array(precision_list), label="precision", color="green")
+    ax[1].plot(x, np.array(recall_list), label="recall", linestyle="dashed", color="purple")
+    ax[1].legend() # 凡例
+    # plt.xlabel("epoch")
+    # plt.ylabel("accuracy")
     plt.savefig(os.path.join(IMAGE_PATH,corename+'_accuracy.png'))
 
     ### Save a model.

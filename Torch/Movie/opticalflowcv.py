@@ -3,7 +3,8 @@ import cv2
 import os, sys
 
 
-savedir="../data/Dogs/Resque/Labeled/Cv2_Optical/"
+#savedir="../data/Dogs/Resque/Labeled/Cv2_Optical/"
+savedir="/export/space/araki-t/Dogs/Resque/Labeled/Cv2_Optical/"
 
 filelist = []
 #receive_dir = sys.argv
@@ -18,7 +19,7 @@ filelist = []
 #     for i in paths:
 #         for j in os.listdir(os.path.join(video_dir, i)):
 #             filelist.append(os.path.join(video_dir, i, j))
-filelist = ["../data/Dogs/Resque/20150801.mp4", "../data/Dogs/Resque/20160710.mp4", "../data/Dogs/Resque/20161111.mp4", "../data/Dogs/Resque/2016112701.mp4", "../data/Dogs/Resque/2016112702.mp4", "../data/Dogs/Resque/2017061901.mp4", "../data/Dogs/Resque/2017061902.mp4"]
+filelist = ["/export/space/araki-t/Dogs/Resque/20150801.mp4"] #, "../data/Dogs/Resque/20160710.mp4", "../data/Dogs/Resque/20161111.mp4", "../data/Dogs/Resque/2016112701.mp4", "../data/Dogs/Resque/2016112702.mp4", "../data/Dogs/Resque/2017061901.mp4", "../data/Dogs/Resque/2017061902.mp4"]
 print(filelist)
 
 ## filelist ---> [ '../data/eat-drink/361.mp4', '../data/bark/ts340.mp4',...]
