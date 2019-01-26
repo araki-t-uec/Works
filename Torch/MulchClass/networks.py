@@ -25,7 +25,7 @@ class Net(nn.Module):
 
     
 class ArakiSoundNet(nn.Module):
-    ##  input size (20 x 94 x 1)
+    ##  input size (1 x 20 x 94)
     ##  48000Hz about 1sec wav file  || 44100Hz wav-file on mfcc -> (20 x 87 x 1)
     ##  output (11)
     def __init__(self):

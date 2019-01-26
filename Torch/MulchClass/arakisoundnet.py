@@ -124,6 +124,8 @@ def train(train_loader, learning_rate):
     for batch_idx, (sounds, labels) in enumerate(train_loader):
         #images = images.transpose(1, 3) # (1,224,224,3) --> (1,3,224,224)
         sounds = sounds.to(device)
+        print(sounds.shape)
+        exit()
         labels = labels.to(device)
         
         # zero the parameter gradients

@@ -412,6 +412,7 @@ class SoundBased_Twostream(torch.utils.data.Dataset):
         images.append(image)
         images.append(sound)
 
+
         return images, np.array(label)
 
 
