@@ -51,11 +51,11 @@ corename = opt.annotation_file.split("/")[-1]+"_"+opt.save_name+"_bc-"+str(batch
 #corename = opt.annotation_file.split("/")[-1]+"_"+opt.save_name+"_bc-"+str(batch_size)+"_lr-"+str(learning_rate)+addtext
 
 transform_train = transforms.Compose(
-    [transforms.Resize((224, 224)),
+    [#transforms.Resize((224, 224)),
      transforms.RandomRotation((-10, 10)),
-     #transforms.Resize((256, 256)),
+     transforms.Resize((256, 256)),
      transforms.RandomHorizontalFlip(p=0.5), 
-     transforms.RandomCrop((224, 224), padding=16),
+     transforms.RandomCrop((224, 224)),#, padding=16),
      transforms.ToTensor(),
      transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)), # imagenet
      ])
